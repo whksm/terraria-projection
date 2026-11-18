@@ -1,5 +1,7 @@
 # 泰拉瑞亚 · 投影模组（Terraria Projection Mod）
 
+> 🎬 演示视频：[用 ai 做了一个简易的泰拉瑞亚投影 mod](https://www.bilibili.com/video/BV1kesU66ECR)
+
 在原版泰拉瑞亚（**非 tModLoader**）里实现类似 Minecraft **Litematica / Schematica** 的建造辅助：
 把蓝图以幽灵块形式投影到世界里，照着摆就行。
 
