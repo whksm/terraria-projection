@@ -1,0 +1,369 @@
+=== Assembly ===
+Name: Terraria  Version: 1.4.5.8
+Runtime: .NETFramework,Version=v4.0,Profile=Client
+EntryPoint: System.Void Terraria.WindowsLaunch::Main(System.String[])
+
+=== AssemblyRefs (前15) ===
+  mscorlib v4.0.0.0
+  Microsoft.Xna.Framework v4.0.0.0
+  System.Core v4.0.0.0
+  Microsoft.Xna.Framework.Graphics v4.0.0.0
+  ReLogic v1.0.0.0
+  Microsoft.Xna.Framework.Game v4.0.0.0
+  System v4.0.0.0
+  Newtonsoft.Json v10.0.0.0
+  System.Windows.Forms v4.0.0.0
+  Ionic.Zip.CF v1.9.1.8
+  SteelSeriesEngineWrapper v1.0.0.0
+  Microsoft.Xna.Framework.Content.Pipeline v4.0.0.0
+  RailSDK.Net v1.0.0.0
+  WindowsBase v4.0.0.0
+  Steamworks.NET v2024.8.0.0
+
+=== Terraria.Main 关键字段 ===
+  Terraria.Tile[0...,0...] tile  (public=True)
+  Microsoft.Xna.Framework.Vector2 screenPosition  (public=True)
+  [缺] LocalPlayer
+  Microsoft.Xna.Framework.Graphics.SpriteBatch spriteBatch  (public=True)
+  [缺] MouseWorld
+  System.Int32[] tileFrame  (public=True)
+  Terraria.Graphics.SpriteViewMatrix GameViewMatrix  (public=True)
+
+=== Main 绘制/更新方法 ===
+  System.Void Terraria.Main::Update(Microsoft.Xna.Framework.GameTime)
+  System.Void Terraria.Main::DoUpdate(Microsoft.Xna.Framework.GameTime&)
+  System.Void Terraria.Main::Draw(Microsoft.Xna.Framework.GameTime)
+  System.Void Terraria.Main::DoDraw(Microsoft.Xna.Framework.GameTime)
+
+=== GameViewMatrix / SpriteViewMatrix 类型 ===
+  TYPE: Terraria.Graphics.SpriteViewMatrix
+      field: Microsoft.Xna.Framework.Vector2 _zoom
+      field: Microsoft.Xna.Framework.Vector2 _translation
+      field: Microsoft.Xna.Framework.Matrix _zoomMatrix
+      field: Microsoft.Xna.Framework.Matrix _transformationMatrix
+      field: Microsoft.Xna.Framework.Matrix _normalizedTransformationMatrix
+      field: Microsoft.Xna.Framework.Graphics.SpriteEffects _effects
+      field: Microsoft.Xna.Framework.Matrix _effectMatrix
+      field: Microsoft.Xna.Framework.Graphics.GraphicsDevice _graphicsDevice
+      field: Microsoft.Xna.Framework.Graphics.Viewport _viewport
+      field: System.Boolean _overrideSystemViewport
+      field: System.Boolean _needsRebuild
+      field: System.Single PixelPerfectOffset
+      field: System.Single PixelPerfectSafeZoomLevelStep
+
+=== Player 放置相关 ===
+  M: System.Void Terraria.Player::PlaceThing(System.Boolean,Terraria.Player/ItemCheckContext&)
+  M: System.Void Terraria.Player::PlaceThing_Walls()
+  M: System.Void Terraria.Player::PlaceThing_Walls_FillEmptySpace()
+  M: System.Void Terraria.Player::PlaceThing_Tiles(System.Boolean)
+  M: System.Boolean Terraria.Player::PlaceThing_IsReplaceableBlock(Terraria.Tile)
+  M: System.Void Terraria.Player::PlaceThing_Tiles_TryPlacing(System.Int32,System.Nullable`1<System.Boolean>,System.Nullable`1<System.Int32>,Terraria.TileObject,System.Int32)
+  M: System.Boolean Terraria.Player::PlaceThing_TryReplacingWalls(System.Boolean)
+  M: System.Boolean Terraria.Player::PlaceThing_ValidWallForReplacement()
+  M: System.Boolean Terraria.Player::PlaceThing_TryReplacingTiles(System.Boolean)
+  M: System.Boolean Terraria.Player::PlaceThing_ValidTileForReplacement()
+  M: System.Boolean Terraria.Player::PlaceThing_CheckPlatformSolidityForBlockSwap(System.Int32,System.Int32,System.Int32,System.Int32)
+  M: System.Boolean Terraria.Player::PlaceThing_CheckSpecificValidtyCaseForBlockSwap(System.Int32,System.Int32,System.Int32,System.Int32)
+  M: Terraria.TileObject Terraria.Player::PlaceThing_Tiles_PlaceIt(System.Boolean,Terraria.TileObject,System.Int32)
+  M: System.Void Terraria.Player::PlaceThing_Tiles_PlaceIt_ConsumeFlexibleWandMaterial()
+  M: Microsoft.Xna.Framework.Vector3[0...,0...] Terraria.Player::PlaceThing_Tiles_GetAutoAccessoryCache()
+  M: System.Int32 Terraria.Player::PlaceThing_Tiles_PlaceIt_GetLegacyTileStyle(System.Int32)
+  M: System.Void Terraria.Player::PlaceThing_Tiles_PlaceIt_UnslopeForSolids()
+  M: System.Void Terraria.Player::PlaceThing_Tiles_PlaceIt_KillGrassForSolids()
+  M: System.Void Terraria.Player::PlaceThing_Tiles_PlaceIt_AutoPaintAndActuate(Microsoft.Xna.Framework.Vector3[0...,0...],System.Int32)
+  M: System.Void Terraria.Player::PlaceThing_Tiles_PlaceIt_SpinSmartPlatform()
+  M: System.Void Terraria.Player::PlaceThing_Tiles_PlaceIt_TriggerLogicLamp()
+  M: System.Void Terraria.Player::PlaceThing_Tiles_PlaceIt_SpinBedsAndBaths()
+  M: System.Void Terraria.Player::PlaceThing_Tiles_PlaceIt_SpinChairs()
+  M: System.Void Terraria.Player::PlaceThing_Tiles_PlaceIt_SpinTraps()
+  M: System.Void Terraria.Player::PlaceThing_Tiles_PlaceIt_AdjustPlants()
+  M: System.Boolean Terraria.Player::PlaceThing_Tiles_PlaceIt_StaffOfRegrowthCheck(System.Boolean)
+  M: System.Boolean Terraria.Player::PlaceThing_Tiles_BlockPlacementForAssortedThings(System.Boolean)
+  M: System.Void Terraria.Player::PlaceThing_Tiles_BlockPlacementForRepeatedPumpkins(System.Boolean&,Terraria.TileObject&)
+  M: System.Void Terraria.Player::PlaceThing_Tiles_BlockPlacementForRepeatedRainbowBoulders(System.Boolean&,Terraria.TileObject&)
+  M: System.Void Terraria.Player::PlaceThing_Tiles_BlockPlacementForRepeatedCoralAndBeachPiles(System.Boolean&,Terraria.TileObject&)
+  M: System.Void Terraria.Player::PlaceThing_Tiles_BlockPlacementForRepeatedPigronatas(System.Boolean&,Terraria.TileObject&)
+  M: System.Void Terraria.Player::PlaceThing_Tiles_BlockPlacementIfOverPlayers(System.Boolean&,Terraria.TileObject&)
+  M: System.Boolean Terraria.Player::PlaceThing_Tiles_IsBlockedByLava(System.Int32,System.Int32,Terraria.Tile)
+  M: System.Boolean Terraria.Player::PlaceThing_Tiles_CheckRopeUsability(System.Boolean)
+  M: System.Boolean Terraria.Player::PlaceThing_Tiles_CheckFlexibleWand(System.Boolean)
+  M: System.Boolean Terraria.Player::PlaceThing_Tiles_CheckWandUsability(System.Boolean)
+  M: System.Boolean Terraria.Player::PlaceThing_Tiles_CheckGamepadTorchUsability(System.Boolean)
+  M: System.Void Terraria.Player::PlaceThing_LockChest()
+  M: System.Void Terraria.Player::PlaceThing_ItemInExtractinator(Terraria.Player/ItemCheckContext&)
+  M: System.Void Terraria.Player::PlaceThing_XMasTreeTops()
+  M: System.Void Terraria.Player::PlaceThing_CannonBall()
+  M: System.Void Terraria.Player::PlaceThing_PaintScraper()
+  M: System.Void Terraria.Player::PlaceThing_PaintScraper_LongMoss(System.Int32,System.Int32)
+  M: System.Void Terraria.Player::PlaceThing_PaintScraper_TryScraping(System.Int32,System.Int32)
+  M: System.Void Terraria.Player::PlaceThing_PaintRoller()
+  M: System.Void Terraria.Player::PlaceThing_Paintbrush()
+  F: System.Int32 tileTargetX  (public=True)
+  F: System.Int32 tileTargetY  (public=True)
+  F: System.Boolean controlUseItem  (public=True)
+  F: System.Int32 blockRange  (public=True)
+  F: System.Int32 tileRangeX  (public=True)
+  F: System.Int32 tileRangeY  (public=True)
+  [缺] selectedItem
+  [缺] position
+
+=== Item 关键字段 ===
+  System.Int32 createTile
+  System.Int32 createWall
+  System.Int32 type
+  System.Int32 stack
+  System.Int32 tileWand
+
+=== Tile 结构字段 ===
+  System.UInt16 type
+  System.UInt16 wall
+  System.Byte liquid
+  System.UInt16 sTileHeader
+  System.Byte bTileHeader
+  System.Byte bTileHeader2
+  System.Byte bTileHeader3
+  System.Int16 frameX
+  System.Int16 frameY
+  System.Int32 Bit0
+  System.Int32 Bit1
+  System.Int32 Bit2
+  System.Int32 Bit3
+  System.Int32 Bit4
+  System.Int32 Bit5
+  System.Int32 Bit6
+  System.Int32 Bit7
+  System.UInt16 Bit15
+  System.Int32 Type_Solid
+  System.Int32 Type_Halfbrick
+  System.Int32 Type_SlopeDownRight
+  System.Int32 Type_SlopeDownLeft
+  System.Int32 Type_SlopeUpRight
+  System.Int32 Type_SlopeUpLeft
+  System.Int32 Liquid_Water
+  System.Int32 Liquid_Lava
+  System.Int32 Liquid_Honey
+  System.Int32 Liquid_Shimmer
+  System.Int32 NeitherLavaOrHoney
+  System.Int32 EitherLavaOrHoney
+=== Main 属性 (LocalPlayer/MouseWorld/player/myPlayer) ===
+  P: Microsoft.Xna.Framework.Vector2 MouseScreen
+  P: Microsoft.Xna.Framework.Vector2 MouseWorld
+  P: Terraria.Player LocalPlayer
+=== Main 字段（含 backing） ===
+=== Main 字段 player/myPlayer ===
+  F: System.Int32 myPlayer
+  F: Terraria.Player[] player
+
+=== Player selectedItem/position ===
+  P: System.Int32 selectedItem
+  F: Terraria.Player/SelectedItemState selectedItemState
+  F: System.Int32 afkSelectedItem
+  F: Terraria.Item[] inventory
+  F: Terraria.Item lastVisualizedSelectedItem
+
+=== SpriteViewMatrix 方法 ===
+  M: System.Void Terraria.Graphics.SpriteViewMatrix::Rebuild()
+  M: System.Void Terraria.Graphics.SpriteViewMatrix::SetViewportOverride(Microsoft.Xna.Framework.Graphics.Viewport)
+  M: System.Void Terraria.Graphics.SpriteViewMatrix::ClearViewportOverride()
+  M: System.Boolean Terraria.Graphics.SpriteViewMatrix::ShouldRebuild()
+=== SpriteViewMatrix 属性 ===
+  P: Microsoft.Xna.Framework.Vector2 Zoom
+  P: Microsoft.Xna.Framework.Vector2 Translation
+  P: Microsoft.Xna.Framework.Matrix ZoomMatrix
+  P: Microsoft.Xna.Framework.Matrix TransformationMatrix
+  P: Microsoft.Xna.Framework.Matrix NormalizedTransformationMatrix
+  P: Microsoft.Xna.Framework.Vector2 RenderZoom
+  P: Microsoft.Xna.Framework.Graphics.SpriteEffects Effects
+  P: Microsoft.Xna.Framework.Matrix EffectMatrix
+
+=== ItemCheckContext 枚举 ===
+=== Player 字段名含 position/Center/velocity ===
+  F: Microsoft.Xna.Framework.Vector2 headPosition
+  F: Microsoft.Xna.Framework.Vector2 bodyPosition
+  F: Microsoft.Xna.Framework.Vector2 legPosition
+  F: System.Nullable`1<Microsoft.Xna.Framework.Vector2> PotionOfReturnOriginalUsePosition
+  F: System.Nullable`1<Microsoft.Xna.Framework.Vector2> PotionOfReturnHomePosition
+  F: Microsoft.Xna.Framework.Vector2 _nextTorchLuckCheckCenter
+  F: Microsoft.Xna.Framework.Vector2 _unbreakableWallScanLastPosition
+  F: Microsoft.Xna.Framework.Point FlexibleWandLastPosition
+=== Player 嵌套类型 ===
+  N: Terraria.Player/BuilderAccToggleIDs
+  N: Terraria.Player/PlayerInputSyncCache
+  N: Terraria.Player/ChannelCancelKey
+  N: Terraria.Player/RabbitOrderFrameHelper
+  N: Terraria.Player/CompositeArmStretchAmount
+  N: Terraria.Player/CompositeArmData
+  N: Terraria.Player/DashStartAction
+  N: Terraria.Player/SetMatchRequest
+  N: Terraria.Player/ItemSpaceStatus
+  N: Terraria.Player/ItemCheckContext
+  N: Terraria.Player/SpecialToolUsageSettings
+  N: Terraria.Player/SavedPlayerDataWithAnnoyingRules
+  N: Terraria.Player/Hooks
+  N: Terraria.Player/SmartCursorSettings
+  N: Terraria.Player/Settings
+  N: Terraria.Player/SelectedItemState
+  N: Terraria.Player/SelectionRadial
+  N: Terraria.Player/OverheadMessage
+  N: Terraria.Player/<>c__DisplayClass2229_0
+=== ItemCheckContext 成员 ===
+  F: System.Boolean SkipItemConsumption  lit=False
+
+=== Tile 方法（读取用） ===
+  M: System.Object Clone()
+  M: System.Int32 get_collisionType()
+  M: System.Boolean isTheSameAs(Tile)
+  M: System.Int32 blockType()
+  M: System.Byte liquidType()
+  M: System.Boolean nactive()
+  M: Microsoft.Xna.Framework.Color actColor(Color)
+  M: System.Boolean topSlope()
+  M: System.Boolean bottomSlope()
+  M: System.Boolean leftSlope()
+  M: System.Boolean rightSlope()
+  M: System.Boolean HasSameSlope(Tile)
+  M: System.Byte wallColor()
+  M: System.Boolean lava()
+  M: System.Boolean honey()
+  M: System.Boolean shimmer()
+  M: System.Boolean water()
+  M: System.Boolean anyWater()
+  M: System.Boolean anyLava()
+  M: System.Boolean anyHoney()
+  M: System.Boolean anyShimmer()
+  M: System.Boolean wire4()
+  M: System.Int32 wallFrameX()
+  M: System.Byte frameNumber()
+  M: System.Byte wallFrameNumber()
+  M: System.Int32 wallFrameY()
+  M: System.Boolean checkingLiquid()
+  M: System.Boolean skipLiquid()
+  M: System.Boolean invisibleBlock()
+  M: System.Boolean invisibleWall()
+  M: System.Boolean fullbrightBlock()
+  M: System.Byte color()
+  M: System.Boolean active()
+  M: System.Boolean inActive()
+  M: System.Boolean wire()
+  M: System.Boolean wire2()
+  M: System.Boolean wire3()
+  M: System.Boolean halfBrick()
+  M: System.Boolean actuator()
+  M: System.Byte slope()
+  M: System.Boolean fullbrightWall()
+  M: System.Boolean anyWire()
+  M: Terraria.TileColorCache BlockColorAndCoating()
+  M: Terraria.TileColorCache WallColorAndCoating()
+  M: System.String ToString()
+=== Player 字段名匹配 pos/Center/Bottom/Top (正则) ===
+  F: Microsoft.Xna.Framework.Vector2 headPosition
+  F: Microsoft.Xna.Framework.Vector2 bodyPosition
+  F: Microsoft.Xna.Framework.Vector2 legPosition
+  F: System.Boolean autoPaint
+  F: System.Nullable`1<Microsoft.Xna.Framework.Vector2> PotionOfReturnOriginalUsePosition
+  F: System.Nullable`1<Microsoft.Xna.Framework.Vector2> PotionOfReturnHomePosition
+  F: System.Boolean accStopwatch
+  F: Microsoft.Xna.Framework.Vector2 _nextTorchLuckCheckCenter
+  F: Microsoft.Xna.Framework.Vector2 _unbreakableWallScanLastPosition
+  F: Microsoft.Xna.Framework.Point FlexibleWandLastPosition
+=== Player 属性名匹配 pos/Center/Bottom/Top ===
+  P: Microsoft.Xna.Framework.Vector2 BlehOldPositionFixer
+  P: System.Single HeightOffsetHitboxCenter
+  P: Microsoft.Xna.Framework.Vector2 MountedCenter
+  P: Microsoft.Xna.Framework.Vector2 MountedTop
+  P: Microsoft.Xna.Framework.Vector2 VisualPosition
+  P: Microsoft.Xna.Framework.Vector2 ReportedCameraPosition
+  P: Microsoft.Xna.Framework.Vector2 SpectatingCameraPosition
+  P: System.Nullable`1<Microsoft.Xna.Framework.Vector2> MouthPosition
+  P: System.Nullable`1<Microsoft.Xna.Framework.Vector2> HandPosition
+=== Player 属性总数: 91 ===
+  P: Microsoft.Xna.Framework.Vector2 BlehOldPositionFixer
+  P: System.Single HeightOffsetVisual
+  P: System.Single HeightOffsetHitboxCenter
+  P: System.Single MountXOffset
+  P: System.Int32 HeightOffsetBoost
+  P: System.Int32 HeightMapOffset
+  P: Microsoft.Xna.Framework.Rectangle HitboxForBestiaryNearbyCheck
+  P: System.Boolean IsConsideredStandingStill
+  P: System.Single BaseHeight
+  P: Microsoft.Xna.Framework.Vector2 MountedCenter
+  P: Microsoft.Xna.Framework.Vector2 MountedTop
+  P: System.Boolean TileReplacementEnabled
+  P: Microsoft.Xna.Framework.Vector2 VisualPosition
+  P: System.Boolean CCed
+  P: System.Single miscCounterNormalized
+  P: System.Boolean accSnappingStoneLightUp
+  P: System.Boolean timerCritChargeFull
+  P: System.Boolean Male
+  P: System.Boolean ZoneDungeon
+  P: System.Boolean ZoneCorrupt
+  P: System.Boolean ZoneHallow
+  P: System.Boolean ZoneMeteor
+  P: System.Boolean ZoneJungle
+  P: System.Boolean ZoneSnow
+  P: System.Boolean ZoneCrimson
+  P: System.Boolean ZoneWaterCandle
+  P: System.Boolean ZonePeaceCandle
+  P: System.Boolean ZoneTowerSolar
+  P: System.Boolean ZoneTowerVortex
+  P: System.Boolean ZoneTowerNebula
+  P: System.Boolean ZoneTowerStardust
+  P: System.Boolean ZoneDesert
+  P: System.Boolean ZoneGlowshroom
+  P: System.Boolean ZoneUndergroundDesert
+  P: System.Boolean ZoneSkyHeight
+  P: System.Boolean ZoneOverworldHeight
+  P: System.Boolean ZoneDirtLayerHeight
+  P: System.Boolean ZoneRockLayerHeight
+  P: System.Boolean ZoneUnderworldHeight
+  P: System.Boolean ZoneBeach
+  P: System.Boolean ZoneRain
+  P: System.Boolean ZoneSandstorm
+  P: System.Boolean ZoneOldOneArmy
+  P: System.Boolean ZoneGranite
+  P: System.Boolean ZoneMarble
+  P: System.Boolean ZoneHive
+  P: System.Boolean ZoneGemCave
+  P: System.Boolean ZoneLihzhardTemple
+  P: System.Boolean ZoneGraveyard
+  P: System.Boolean ZoneShadowCandle
+  P: System.Boolean ZoneShimmer
+  P: System.Boolean ShoppingZone_AnyBiome
+  P: System.Boolean ShoppingZone_BelowSurface
+  P: System.Boolean ShoppingZone_Forest
+  P: Microsoft.Xna.Framework.Vector2 Directions
+  P: System.Int32 selectedItem
+  P: Terraria.Item HeldItem
+  P: System.Int32 breathCDMax
+  P: System.Boolean ShouldFloatInWater
+  P: System.Boolean CanBeTalkedTo
+
+=== Main.MouseScreen 属性可写性 ===
+  getter: True  setter: False
+  MouseWorld getter: True  setter: False
+=== Main.Cursor 相关字段 ===
+  F: Microsoft.Xna.Framework.Color MouseBorderColor
+  F: System.Boolean MouseShowBuildingGrid
+  F: System.Boolean InvisibleCursorForGamepad
+  F: System.Boolean GamepadDisableCursorItemIconInner
+  F: System.Single MouseBuildingGridAlpha
+  F: System.Boolean unityMouseOver
+  F: Microsoft.Xna.Framework.Vector2 _lastPingMousePosition
+  F: System.Double _lastPingMouseDownTime
+  F: System.Int32 mouseX
+  F: System.Int32 mouseY
+  F: System.Int32 lastMouseX
+  F: System.Int32 lastMouseY
+  F: System.Boolean mouseLeft
+  F: System.Boolean mouseRight
+  F: System.Boolean isMouseLeftConsumedByUI
+  F: System.Int32 mouseNPCIndex
+  F: System.Int32 mouseNPCType
+  F: Microsoft.Xna.Framework.Graphics.SamplerState SamplerStateForCursor
+  F: System.Boolean ReHideCursor
+  F: System.Boolean bannerMouseOver
+  F: System.Boolean inventorySortMouseOver
+  F: System.Boolean bestiaryMouseOver
+  F: System.Boolean emoteMouseOver
+  F: System.Boolean hotbarLockMouseOver
+  F: System.Boolean achievementAdvisorMouseOver

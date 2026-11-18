@@ -1,0 +1,21 @@
+# 构建产物
+tool/build/
+bin/
+obj/
+*.pdb
+
+# 游戏本体（不要上传，几千万字节，而且有版权）
+Terraria.exe
+Terraria_MultiRod.exe
+
+# 打包产物
+*.zip
+
+# 依赖包（体积大，用 NuGet 恢复）
+lib/
+lib/harmony.nupkg.zip
+
+# 系统
+Thumbs.db
+desktop.ini
+.DS_Store
