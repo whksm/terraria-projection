@@ -27,6 +27,8 @@ dotnet publish installer/SetupApp -c Release -r win-x64 --self-contained true `
 | `Setup.exe "D:\path\to\Terraria"` | 打开界面并预填目录 |
 | `Setup.exe --silent "D:\path\to\Terraria"` | 静默安装，退出码 0=成功、非 0=失败 |
 | `Setup.exe --silent --no-shortcut "目录"` | 静默安装但跳过桌面快捷方式 |
+| `Setup.exe --shortcut-name "名字"` | 改快捷方式文件名（不带 `.lnk`），默认 `泰拉瑞亚投影MOD` |
+| `Setup.exe --shortcut-dir "目录"` | 快捷方式放到指定目录而不是桌面（测试用） |
 | `Setup.exe --detect-only` | 只检测游戏目录，不写任何文件 |
 | `Setup.exe --selftest` | 环境自检（内嵌资源 / WinForms / COM / 代码页），不碰游戏 |
 | `Setup.exe --help` / `--version` | 帮助 / 版本 |
@@ -50,7 +52,20 @@ UTF-8、带毫秒时间戳，开头写启动环境、结尾写结果汇总。任
 5. 复制 `ProjectionMod.dll`、`0Harmony.dll`、`ProjectionMod.bp`（已存在不覆盖）、`ProjectionMod.ico`、
    `卸载.bat`、`投影MOD_使用说明.md`，每个文件校验写入长度。
 6. 建桌面快捷方式 `泰拉瑞亚投影MOD.lnk`（带图标）：先用 IShellLink COM，失败回退到内嵌的
-   `shortcut.ps1`（和 setup.cmd 同一条已验证路径）。快捷方式失败只是警告，不算安装失败。
+   `shortcut.ps1`（和 setup.cmd 同一条已验证路径），再失败用生成的自定义路径脚本。
+   文件名/目录可以用 `--shortcut-name` / `--shortcut-dir` 改。快捷方式失败只是警告，不算安装失败。
+
+## 实测纪律（重要）
+
+1. **绝不覆盖用户桌面上真正的 `泰拉瑞亚投影MOD.lnk`**。实测时用
+   `--shortcut-name 投影MOD_安装测试` 或 `--shortcut-dir <临时目录>`，
+   或者干脆 `--no-shortcut`。测完删掉测试快捷方式和测试目录。
+2. **验收标准里不包含"启动游戏"**。测试副本只有 `Terraria.exe`，没有 `steam_api.dll` 和 `Content`，
+   启动必然报 `System.DllNotFoundException: Unable to load DLL 'steam_api'`——这是副本不完整，
+   不是 mod 或安装器的问题。验收只看：exe 是否打进补丁（大小/标记/退出码）、文件是否复制齐全、
+   日志是否正常、重复安装是否幂等。
+3. 测试副本可能被上一次残留的 Terraria 进程锁住（独占打开失败）。遇到就另开一份新副本，
+   不要 kill 玩家正在用的进程。
 
 ## 实测记录（本机，干净游戏目录副本）
 
@@ -61,6 +76,9 @@ UTF-8、带毫秒时间戳，开头写启动环境、结尾写结果汇总。任
   备份 SHA256/时间不变、`ProjectionMod.bp` 不覆盖 → 幂等
 - 界面模式：窗口正常打开、点「开始安装」走完全流程、弹「安装完成」，日志同步
 - 负面用例：目录不存在 → 退出码 3；游戏正在运行 → 退出码 4 且目标目录一个文件都没写
+- 按「不碰真桌面快捷方式」的约束复测：`--shortcut-name 投影MOD_安装测试 --shortcut-dir <临时目录>`，
+  三次安装（全新 / 重复 / `--no-shortcut`）退出码都是 0，测试 lnk 建在临时目录里，
+  桌面真 shortcut 的 SHA256 与修改时间在测试前后**完全一致**；`--shortcut-dir` 指向不存在的目录会自动创建
 
 ## 环境坑（排查记录）
 

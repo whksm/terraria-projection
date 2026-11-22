@@ -19,6 +19,10 @@ namespace ProjectionSetup
         public bool ShowVersion;
         public bool DetectOnly;
         public string GameDir;
+        /// <summary>自定义快捷方式名（不带 .lnk）；为空=泰拉瑞亚投影MOD。测试时用测试名，绝不覆盖真名。</summary>
+        public string ShortcutName;
+        /// <summary>快捷方式放哪个目录；为空=当前用户桌面。测试时指到临时目录。</summary>
+        public string ShortcutDir;
 
         public static CliArgs Parse(string[] args)
         {
@@ -33,6 +37,24 @@ namespace ProjectionSetup
                 else if (low == "--detect-only") c.DetectOnly = true;
                 else if (low == "--help" || low == "-h" || low == "/?" || low == "-?") c.ShowHelp = true;
                 else if (low == "--version" || low == "-v") c.ShowVersion = true;
+                else if (low == "--shortcut-name" || low == "-n")
+                {
+                    if (i + 1 >= args.Length) throw new ArgumentException("--shortcut-name 后面缺少名字");
+                    c.ShortcutName = args[++i];
+                }
+                else if (low.StartsWith("--shortcut-name="))
+                {
+                    c.ShortcutName = a.Substring("--shortcut-name=".Length);
+                }
+                else if (low == "--shortcut-dir")
+                {
+                    if (i + 1 >= args.Length) throw new ArgumentException("--shortcut-dir 后面缺少路径");
+                    c.ShortcutDir = args[++i];
+                }
+                else if (low.StartsWith("--shortcut-dir="))
+                {
+                    c.ShortcutDir = a.Substring("--shortcut-dir=".Length);
+                }
                 else if (low == "--dir" || low == "-d")
                 {
                     if (i + 1 >= args.Length) throw new ArgumentException("--dir 后面缺少路径");
@@ -67,6 +89,8 @@ namespace ProjectionSetup
             if (DetectOnly) parts.Add("--detect-only");
             if (ShowHelp) parts.Add("--help");
             if (ShowVersion) parts.Add("--version");
+            if (!string.IsNullOrWhiteSpace(ShortcutName)) parts.Add("--shortcut-name=" + ShortcutName);
+            if (!string.IsNullOrWhiteSpace(ShortcutDir)) parts.Add("--shortcut-dir=" + ShortcutDir);
             parts.Add("游戏目录=" + (string.IsNullOrEmpty(GameDir) ? "(自动检测)" : GameDir));
             return string.Join(" ", parts);
         }
@@ -168,6 +192,8 @@ namespace ProjectionSetup
                 GameDir = cli.GameDir,
                 Silent = true,
                 NoShortcut = cli.NoShortcut,
+                ShortcutName = cli.ShortcutName,
+                ShortcutDir = cli.ShortcutDir,
                 AskGameDir = null,
                 Progress = delegate (int pct, string msg) { ConOut.Write("  " + pct.ToString().PadLeft(3) + "%  " + msg); },
             };
@@ -341,6 +367,8 @@ namespace ProjectionSetup
             sb.AppendLine("  Setup.exe \"D:\\path\\to\\Terraria\"            打开界面并预填游戏目录");
             sb.AppendLine("  Setup.exe --silent \"D:\\path\\to\\Terraria\"   静默安装，退出码 0=成功、非 0=失败");
             sb.AppendLine("  Setup.exe --silent --no-shortcut \"目录\"      静默安装但不建桌面快捷方式");
+            sb.AppendLine("  Setup.exe --shortcut-name \"自定义名字\"        改快捷方式名（不带 .lnk）");
+            sb.AppendLine("  Setup.exe --shortcut-dir \"目录\"              快捷方式放到指定目录而不是桌面");
             sb.AppendLine("  Setup.exe --detect-only                      只检测游戏目录，不安装");
             sb.AppendLine("  Setup.exe --selftest                         环境自检（不碰游戏）");
             sb.AppendLine("  Setup.exe --version / --help                 版本 / 帮助");
@@ -349,6 +377,9 @@ namespace ProjectionSetup
             sb.AppendLine("        5 备份失败 / 6 打补丁失败 / 7 复制文件失败 / 9 未知异常");
             sb.AppendLine();
             sb.AppendLine("日志：exe 同目录 install.log（不可写时用 %TEMP%\\install.log）");
+            sb.AppendLine();
+            sb.AppendLine("测试建议：用 --shortcut-name 测试名 或 --shortcut-dir 临时目录，避免覆盖桌面上的真快捷方式；");
+            sb.AppendLine("          只验证补丁/复制/幂等，不要试图启动游戏副本（缺 steam_api.dll 与 Content）。");
             return sb.ToString();
         }
     }

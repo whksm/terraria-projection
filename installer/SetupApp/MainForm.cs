@@ -167,6 +167,8 @@ namespace ProjectionSetup
             opt.GameDir = gameDir;
             opt.Silent = false;
             opt.NoShortcut = _cli.NoShortcut;
+            opt.ShortcutName = _cli.ShortcutName;
+            opt.ShortcutDir = _cli.ShortcutDir;
             opt.AskGameDir = AskGameDir;
             opt.Progress = OnProgress;
 

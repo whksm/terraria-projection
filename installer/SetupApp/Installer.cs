@@ -28,6 +28,10 @@ namespace ProjectionSetup
         public string GameDir;
         public bool Silent;
         public bool NoShortcut;
+        /// <summary>自定义快捷方式名（不带 .lnk）；null/空=泰拉瑞亚投影MOD。</summary>
+        public string ShortcutName;
+        /// <summary>快捷方式目录；null/空=当前用户桌面。测试时指到临时目录，绝不碰真桌面。</summary>
+        public string ShortcutDir;
         /// <summary>未找到目录时由界面弹选择框；静默模式为 null。</summary>
         public Func<string> AskGameDir;
         /// <summary>进度回调：百分比 0-100、当前步骤描述。可能在工作线程上调用。</summary>
@@ -55,7 +59,6 @@ namespace ProjectionSetup
     {
         public const string AppName = "泰拉瑞亚投影MOD 安装器";
         public const string Version = "1.0.0";
-        public const string ShortcutName = "泰拉瑞亚投影MOD.lnk";
         private const int TotalSteps = 6;
 
         private sealed class PayloadFile
@@ -286,7 +289,7 @@ namespace ProjectionSetup
                 }
                 else
                 {
-                    CreateShortcut(gameDir, exePath, r);
+                    CreateShortcut(opt, gameDir, exePath, r);
                 }
 
                 r.ExitCode = (int)ExitCodes.Ok;
@@ -638,26 +641,71 @@ namespace ProjectionSetup
         //  快捷方式
         // ------------------------------------------------------------------
 
-        private static void CreateShortcut(string gameDir, string exePath, InstallResult r)
+        /// <summary>快捷方式文件名默认值。--shortcut-name 可以改掉（测试时不碰真名）。</summary>
+        public const string DefaultShortcutBaseName = "泰拉瑞亚投影MOD";
+
+        private static string SanitizeShortcutName(string name)
+        {
+            if (string.IsNullOrWhiteSpace(name)) return DefaultShortcutBaseName;
+            name = name.Trim();
+            if (name.EndsWith(".lnk", StringComparison.OrdinalIgnoreCase))
+                name = name.Substring(0, name.Length - 4);
+            foreach (char c in Path.GetInvalidFileNameChars()) name = name.Replace(c, '_');
+            name = name.Trim().TrimEnd('.');
+            return string.IsNullOrWhiteSpace(name) ? DefaultShortcutBaseName : name;
+        }
+
+        private static void CreateShortcut(InstallOptions opt, string gameDir, string exePath, InstallResult r)
         {
             string ico = Path.Combine(gameDir, "ProjectionMod.ico");
-            string desktop;
-            try { desktop = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory); }
-            catch { desktop = null; }
-            if (string.IsNullOrEmpty(desktop))
+
+            // 目标目录：默认桌面；--shortcut-dir 指定时用指定目录（测试用，绝不碰真桌面）
+            bool customDir = !string.IsNullOrWhiteSpace(opt.ShortcutDir);
+            bool customName = !string.IsNullOrWhiteSpace(opt.ShortcutName);
+            string dir;
+            if (customDir)
             {
-                desktop = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
+                try { dir = Path.GetFullPath(opt.ShortcutDir.Trim().Trim('"')); }
+                catch (Exception e)
+                {
+                    Log.Line("      [警告] --shortcut-dir 路径无效: " + e.Message + "，改用桌面");
+                    dir = DesktopDir();
+                    customDir = false;
+                }
             }
-            if (string.IsNullOrEmpty(desktop))
+            else
+            {
+                dir = DesktopDir();
+            }
+            if (string.IsNullOrEmpty(dir))
             {
                 Log.Line("      [警告] 拿不到桌面路径，跳过快捷方式");
                 r.Warnings.Add("拿不到桌面路径，快捷方式未创建");
                 return;
             }
+            if (customDir)
+            {
+                try { Directory.CreateDirectory(dir); }
+                catch (Exception e)
+                {
+                    r.Warnings.Add("快捷方式目录建不出来: " + e.Message);
+                    Log.Line("      [警告] 快捷方式目录建不出来: " + e.Message);
+                    return;
+                }
+            }
 
-            string lnk = Path.Combine(desktop, ShortcutName);
+            string name = SanitizeShortcutName(opt.ShortcutName);
+            string lnk = Path.Combine(dir, name + ".lnk");
+            if (customDir || customName)
+                Log.Line("      快捷方式使用自定义位置（测试用，不影响桌面真名快捷方式）: " + lnk);
 
-            // 方式一：IShellLink COM（不依赖 PowerShell）
+            if (File.Exists(lnk))
+            {
+                string old = TryReadShortcutTarget(lnk);
+                if (!string.IsNullOrEmpty(old)) Log.Line("      同名快捷方式已存在，当前指向: " + old);
+            }
+
+            // 方式一：IShellLink COM（不依赖 PowerShell，能指定任意路径）
             try
             {
                 ShellLink.Create(lnk, exePath, gameDir, File.Exists(ico) ? ico : null, "泰拉瑞亚投影MOD（原版 1.4.5.8）");
@@ -674,37 +722,114 @@ namespace ProjectionSetup
                 Log.Line("      COM 方式失败: " + e.GetType().Name + ": " + e.Message);
             }
 
-            // 方式二：直接用 release/shortcut.ps1（和 setup.cmd 同一条已验证路径）
+            // 方式二（默认位置）：直接用 release/shortcut.ps1（和 setup.cmd 同一条已验证路径）
+            if (!customDir && !customName)
+            {
+                string tempDir1 = null;
+                try
+                {
+                    tempDir1 = Path.Combine(Path.GetTempPath(), "ProjectionModSetup_" + Guid.NewGuid().ToString("N").Substring(0, 8));
+                    Directory.CreateDirectory(tempDir1);
+                    string script = Path.Combine(tempDir1, "shortcut.ps1");
+                    ExtractResource("pl.shortcut.ps1", script);
+                    Proc.Result pr = Proc.Run("powershell.exe",
+                        "-NoProfile -ExecutionPolicy Bypass -File \"" + script + "\" \"" + gameDir + "\"",
+                        tempDir1, 120000);
+                    Log.Line("      shortcut.ps1 退出码: " + pr.ExitCode + (string.IsNullOrWhiteSpace(pr.StdOut) ? "" : "  输出: " + Flatten(pr.StdOut)));
+                    if (File.Exists(lnk))
+                    {
+                        r.ShortcutPath = lnk;
+                        Log.Line("      已创建快捷方式（PowerShell）: " + lnk + " (" + new FileInfo(lnk).Length + " 字节)");
+                        return;
+                    }
+                    Log.Line("      [警告] PowerShell 回退也没生成 .lnk");
+                }
+                catch (Exception e)
+                {
+                    Log.Line("      PowerShell 回退失败: " + e.GetType().Name + ": " + e.Message);
+                }
+                finally
+                {
+                    TryDeleteDir(tempDir1);
+                }
+            }
+
+            // 方式三：生成一个能指定任意路径的 PowerShell 脚本再试一次
+            if (TryCreateShortcutWithPowerShell(lnk, exePath, gameDir, File.Exists(ico) ? ico : null))
+            {
+                r.ShortcutPath = lnk;
+                Log.Line("      已创建快捷方式（PowerShell 自定义路径）: " + lnk + " (" + new FileInfo(lnk).Length + " 字节)");
+                return;
+            }
+
+            r.Warnings.Add("桌面快捷方式创建失败（不影响游戏，可手动把 Terraria.exe 发到桌面）");
+            Log.Line("      [警告] 快捷方式创建失败，安装其余步骤不受影响");
+        }
+
+        private static string DesktopDir()
+        {
+            string d = null;
+            try { d = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory); }
+            catch { }
+            if (string.IsNullOrEmpty(d))
+            {
+                try { d = Environment.GetFolderPath(Environment.SpecialFolder.Desktop); }
+                catch { }
+            }
+            return d;
+        }
+
+        private static string TryReadShortcutTarget(string lnk)
+        {
+            try { return ShellLink.ReadTarget(lnk); }
+            catch (Exception e)
+            {
+                Log.Line("      读取已有快捷方式目标失败: " + e.GetType().Name + ": " + e.Message);
+                return null;
+            }
+        }
+
+        private static bool TryCreateShortcutWithPowerShell(string lnk, string exePath, string workDir, string icoPath)
+        {
             string tempDir = null;
             try
             {
                 tempDir = Path.Combine(Path.GetTempPath(), "ProjectionModSetup_" + Guid.NewGuid().ToString("N").Substring(0, 8));
                 Directory.CreateDirectory(tempDir);
-                string script = Path.Combine(tempDir, "shortcut.ps1");
-                ExtractResource("pl.shortcut.ps1", script);
+                string script = Path.Combine(tempDir, "mkshortcut.ps1");
+                StringBuilder sb = new StringBuilder();
+                sb.AppendLine("param([string]$LnkPath, [string]$Target, [string]$WorkDir, [string]$Icon, [string]$Desc)");
+                sb.AppendLine("$ErrorActionPreference = 'Stop'");
+                sb.AppendLine("$sh = New-Object -ComObject WScript.Shell");
+                sb.AppendLine("$s = $sh.CreateShortcut($LnkPath)");
+                sb.AppendLine("$s.TargetPath = $Target");
+                sb.AppendLine("$s.WorkingDirectory = $WorkDir");
+                sb.AppendLine("if ($Icon -and (Test-Path $Icon)) { $s.IconLocation = $Icon }");
+                sb.AppendLine("$s.Description = $Desc");
+                sb.AppendLine("$s.Save()");
+                sb.AppendLine("if (-not (Test-Path $LnkPath)) { throw 'Save() 之后 .lnk 仍不存在' }");
+                // Windows PowerShell 5.1 读无 BOM 的 UTF-8 脚本会乱码，这里写成带 BOM 的 UTF-8
+                File.WriteAllText(script, sb.ToString(), new UTF8Encoding(true));
+
                 Proc.Result pr = Proc.Run("powershell.exe",
-                    "-NoProfile -ExecutionPolicy Bypass -File \"" + script + "\" \"" + gameDir + "\"",
+                    "-NoProfile -ExecutionPolicy Bypass -File \"" + script + "\"" +
+                    " -LnkPath \"" + lnk + "\" -Target \"" + exePath + "\" -WorkDir \"" + workDir + "\"" +
+                    " -Icon \"" + (icoPath ?? "") + "\" -Desc \"泰拉瑞亚投影MOD（原版 1.4.5.8）\"",
                     tempDir, 120000);
-                Log.Line("      shortcut.ps1 退出码: " + pr.ExitCode + (string.IsNullOrWhiteSpace(pr.StdOut) ? "" : "  输出: " + Flatten(pr.StdOut)));
-                if (File.Exists(lnk))
-                {
-                    r.ShortcutPath = lnk;
-                    Log.Line("      已创建快捷方式（PowerShell）: " + lnk + " (" + new FileInfo(lnk).Length + " 字节)");
-                    return;
-                }
-                Log.Line("      [警告] PowerShell 回退也没生成 .lnk");
+                Log.Line("      mkshortcut.ps1 退出码: " + pr.ExitCode +
+                        (string.IsNullOrWhiteSpace(pr.StdOut) ? "" : "  输出: " + Flatten(pr.StdOut)) +
+                        (string.IsNullOrWhiteSpace(pr.StdErr) ? "" : "  错误: " + Flatten(pr.StdErr)));
+                return File.Exists(lnk);
             }
             catch (Exception e)
             {
-                Log.Line("      PowerShell 回退失败: " + e.GetType().Name + ": " + e.Message);
+                Log.Line("      自定义路径 PowerShell 回退失败: " + e.GetType().Name + ": " + e.Message);
+                return false;
             }
             finally
             {
                 TryDeleteDir(tempDir);
             }
-
-            r.Warnings.Add("桌面快捷方式创建失败（不影响游戏，可手动把 Terraria.exe 发到桌面）");
-            Log.Line("      [警告] 快捷方式创建失败，安装其余步骤不受影响");
         }
 
         private static void TryDeleteDir(string dir)

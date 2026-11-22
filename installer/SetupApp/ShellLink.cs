@@ -66,5 +66,22 @@ namespace ProjectionSetup
             ((IPersistFile)link).Save(lnkPath, true);
             Marshal.FinalReleaseComObject(link);
         }
+
+        /// <summary>读已有 .lnk 的目标路径（只用于日志/校验，读不到就抛异常）。</summary>
+        public static string ReadTarget(string lnkPath)
+        {
+            IShellLinkW link = (IShellLinkW)new ShellLinkCoClass();
+            try
+            {
+                ((IPersistFile)link).Load(lnkPath, 0);
+                StringBuilder sb = new StringBuilder(1024);
+                link.GetPath(sb, sb.Capacity, IntPtr.Zero, 0);
+                return sb.ToString();
+            }
+            finally
+            {
+                try { Marshal.FinalReleaseComObject(link); } catch { }
+            }
+        }
     }
 }
