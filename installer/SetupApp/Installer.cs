@@ -58,7 +58,7 @@ namespace ProjectionSetup
     internal static class Installer
     {
         public const string AppName = "泰拉瑞亚投影MOD 安装器";
-        public const string Version = "1.0.0";
+        public const string Version = "1.2.0";
         private const int TotalSteps = 6;
 
         private sealed class PayloadFile

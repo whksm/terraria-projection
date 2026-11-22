@@ -34,19 +34,51 @@
 - Windows 10 / 11
 - Steam 版泰拉瑞亚 **1.4.5.8**（其他版本不保证可用，游戏更新后需要重新适配）
 - NumPad 热键需要开启 NumLock
-- 不需要额外运行库（.NET Framework 系统自带）
+- 不需要额外运行库（单文件 exe 自带 .NET 8 运行时；`setup.cmd` 走系统自带 .NET Framework）
 
 ## 安装
+
+> **不需要装 .NET**：下面方式一的 exe 自带运行时；方式二用的是系统自带的 .NET Framework。
+
+### 方式一：单文件 exe（双击即装，无需 .NET）
+
+1. 关掉正在运行的泰拉瑞亚
+2. 下载 Releases 里的 **`TerrariaProjection_Setup.exe`**（约 64 MB，把 .NET 运行时一起打包了，所以体积偏大），双击
+3. 它会自动：找游戏目录（Steam 注册表 / 常见路径，找不到弹目录选择框）→ 备份 `Terraria.exe` →
+   给入口打补丁 → 复制插件/卸载脚本/说明 → 在桌面建带图标的快捷方式
+4. 从桌面「启动泰拉瑞亚投影MOD」或 Steam 正常启动，进任意世界，出生点附近会看到演示投影
+
+命令行（脚本/自动化用）：
+
+```bat
+:: 静默安装，退出码 0=成功、非 0=失败
+TerrariaProjection_Setup.exe --silent "D:\steam\steamapps\common\Terraria"
+
+:: 只检测游戏目录，不写任何文件
+TerrariaProjection_Setup.exe --detect-only
+
+:: 快捷方式放到别的目录 / 换名字（测试或不想动桌面时）
+TerrariaProjection_Setup.exe --silent --shortcut-dir "D:\tmp\lnk" --shortcut-name "投影MOD测试" "游戏目录"
+```
+
+- 日志：**exe 同目录的 `install.log`**（目录不可写时退到 `%TEMP%\install.log`），失败原因一定写在里面
+  并弹窗提示；退出码 `0` 成功 / `3` 找不到游戏 / `4` 游戏正在运行 / `6` 打补丁失败。
+- 快捷方式防撞名：默认名 **`启动泰拉瑞亚投影MOD`**（带「启动」前缀）。Windows 上如果桌面上同时有
+  文件夹 `X` 和快捷方式 `X.lnk`（扩展名隐藏，看着同名），打开 `X` 会直接启动游戏而不是打开文件夹，
+  所以安装器建之前会检查同名文件夹和同名别人的快捷方式，冲突就自动加 `(2)`、`(3)` 后缀，
+  **绝不覆盖已经存在的快捷方式**。
+
+### 方式二：zip + setup.cmd（回退方案）
 
 1. 关掉正在运行的泰拉瑞亚
 2. 下载 Releases 里的 zip，解压后**双击 `安装.bat`（或 `setup.cmd`）**
 3. 安装器会自动：找游戏目录 → 备份 `Terraria.exe` → 打补丁 → 复制插件 → **创建带图标的桌面快捷方式**
-4. 从桌面「泰拉瑞亚投影MOD」或 Steam 正常启动，进任意世界，出生点附近会看到演示投影
+4. 从桌面「启动泰拉瑞亚投影MOD」或 Steam 正常启动
 
 > 找不到游戏目录时会提示手动输入（或把游戏文件夹拖进来）。
 > 安装器支持静默参数：`setup.cmd "游戏目录" --silent`（供脚本/打包使用）。
 
-卸载：双击游戏目录里的 `卸载.bat`，或把备份的 `Terraria.exe` 覆盖回去。
+卸载：双击游戏目录里的 `卸载.bat`，或把备份的 `Terraria.exe` 覆盖回去（两种安装方式通用）。
 
 ## 热键
 
@@ -79,7 +111,9 @@ tool/
   build/        构建时的游戏 exe 副本（不入库）
 assets/         图标
 notes/          开发笔记与截图
-release/        打包好的可安装版本
+release/        打包好的可安装版本（setup.cmd 方式）
+installer/      单文件安装器源码（.NET 8 WinForms；publish.ps1 一键发布）
+dist/           发布产物（exe / zip 不进 git，RELEASE_NOTES.md 进 git）
 ```
 
 ## 构建
@@ -99,7 +133,8 @@ cd tool
 - 打印机在多人模式下默认禁用（防止被当成作弊）
 - 蓝图目前不保存箱子内容 / 牌子文字
 - 家具 / 火把等多格物块不做无支撑自动打印（避免生成非法 tile）
-- 没有做成单文件 exe 安装器：原版创意工坊不支持代码 mod，本机打包测试也未通过，因此仍是「解压 + 双击安装脚本」
+- 单文件安装器约 64 MB：体积主要是 **.NET 8 自包含运行时**（换了它就不用用户装 .NET），
+  载荷本身只有约 3 MB；不想下大文件可以用 zip + `setup.cmd` 的回退方案
 
 ## 参与
 

@@ -21,9 +21,11 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
 
-    <Version>1.0.0</Version>
-    <FileVersion>1.0.0.0</FileVersion>
-    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <Version>1.2.0</Version>
+    <FileVersion>1.2.0.0</FileVersion>
+    <AssemblyVersion>1.2.0.0</AssemblyVersion>
+    <!-- 发布版本号保持干净：不要把 git 提交号拼进 ProductVersion -->
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     <Product>泰拉瑞亚投影MOD 安装器</Product>
     <AssemblyTitle>泰拉瑞亚投影MOD 安装器</AssemblyTitle>
     <Company>泰拉瑞亚投影MOD</Company>
