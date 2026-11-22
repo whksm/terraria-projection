@@ -11,6 +11,10 @@ Terraria_MultiRod.exe
 # 打包产物
 *.zip
 
+# 安装器发布出来的单文件 exe（64MB，每次 publish 都能重生成，不进 git）
+dist/*.exe
+install.log
+
 # 依赖包（体积大，用 NuGet 恢复）
 lib/
 lib/harmony.nupkg.zip

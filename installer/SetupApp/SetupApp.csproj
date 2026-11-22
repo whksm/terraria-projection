@@ -1,0 +1,58 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    泰拉瑞亚投影MOD 单文件安装器（SDK 风格项目）
+    * 目标框架 net8.0-windows + WinForms（只用 SDK 自带框架，不引用任何 NuGet 包）
+    * 发布成自包含单文件 exe，参数见 README.md / publish.ps1：
+        自包含 + 单文件 + 压缩 + 原生库自解压
+    * release/ 里的载荷全部以 EmbeddedResource 内嵌，运行时解压到临时目录再执行。
+  -->
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <AssemblyName>Setup</AssemblyName>
+    <RootNamespace>ProjectionSetup</RootNamespace>
+    <ApplicationIcon>..\..\release\icon.ico</ApplicationIcon>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
+
+    <Version>1.0.0</Version>
+    <FileVersion>1.0.0.0</FileVersion>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <Product>泰拉瑞亚投影MOD 安装器</Product>
+    <AssemblyTitle>泰拉瑞亚投影MOD 安装器</AssemblyTitle>
+    <Company>泰拉瑞亚投影MOD</Company>
+    <Copyright>泰拉瑞亚投影MOD</Copyright>
+    <NeutralLanguage>zh-Hans</NeutralLanguage>
+    <SatelliteResourceLanguages>zh-Hans</SatelliteResourceLanguages>
+
+    <DebugType>none</DebugType>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <EnableDefaultApplicationDefinition>false</EnableDefaultApplicationDefinition>
+    <!-- CA1416: 项目本来就只跑 Windows；IL2026/IL3050 等裁剪相关警告不适用（未开启裁剪） -->
+    <NoWarn>$(NoWarn);CA1416</NoWarn>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+  </PropertyGroup>
+
+  <!--
+    载荷：全部来自 release/，逻辑名统一用 ASCII 的 pl.*，避免中文资源名在 Manifest 里出问题。
+    LogicalName 决定 Assembly.GetManifestResourceStream 的名字。
+  -->
+  <ItemGroup>
+    <EmbeddedResource Include="..\..\release\Patcher.exe" LogicalName="pl.Patcher.exe" />
+    <EmbeddedResource Include="..\..\release\Mono.Cecil.dll" LogicalName="pl.Mono.Cecil.dll" />
+    <EmbeddedResource Include="..\..\release\ProjectionMod.dll" LogicalName="pl.ProjectionMod.dll" />
+    <EmbeddedResource Include="..\..\release\0Harmony.dll" LogicalName="pl.0Harmony.dll" />
+    <EmbeddedResource Include="..\..\release\ProjectionMod.bp" LogicalName="pl.ProjectionMod.bp" />
+    <EmbeddedResource Include="..\..\release\icon.ico" LogicalName="pl.icon.ico" />
+    <EmbeddedResource Include="..\..\release\卸载.bat" LogicalName="pl.Uninstall.bat" />
+    <EmbeddedResource Include="..\..\release\使用说明.md" LogicalName="pl.Readme.md" />
+    <EmbeddedResource Include="..\..\release\shortcut.ps1" LogicalName="pl.shortcut.ps1" />
+  </ItemGroup>
+
+</Project>
