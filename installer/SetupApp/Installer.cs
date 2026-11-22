@@ -641,8 +641,11 @@ namespace ProjectionSetup
         //  快捷方式
         // ------------------------------------------------------------------
 
-        /// <summary>快捷方式文件名默认值。--shortcut-name 可以改掉（测试时不碰真名）。</summary>
-        public const string DefaultShortcutBaseName = "泰拉瑞亚投影MOD";
+        /// <summary>
+        /// 快捷方式文件名默认值。注意不要用「泰拉瑞亚投影MOD」这种会和桌面文件夹撞名的名字：
+        /// 桌面上同时有同名文件夹和 .lnk 时，打开那个路径会解析到 .lnk（直接启动游戏）而不是文件夹。
+        /// </summary>
+        public const string DefaultShortcutBaseName = "启动泰拉瑞亚投影MOD";
 
         private static string SanitizeShortcutName(string name)
         {
@@ -653,6 +656,68 @@ namespace ProjectionSetup
             foreach (char c in Path.GetInvalidFileNameChars()) name = name.Replace(c, '_');
             name = name.Trim().TrimEnd('.');
             return string.IsNullOrWhiteSpace(name) ? DefaultShortcutBaseName : name;
+        }
+
+        /// <summary>
+        /// 挑一个不会和「同名文件夹 / 别人的同名快捷方式」冲突的文件名。
+        /// 规则：
+        ///   * 目录里已有同名文件夹（大小写不敏感）→ 该名字作废，加 (2) (3)… 后缀；
+        ///   * 已有同名 .lnk 且指向本安装的 exe  → 直接复用（重复安装幂等，不再加后缀）；
+        ///   * 已有同名 .lnk 但指向别处          → 该名字作废，加后缀，绝不覆盖。
+        /// </summary>
+        private static string PickShortcutPath(string dir, string baseName, string exePath, out bool reused, out string note)
+        {
+            reused = false;
+            note = null;
+            for (int i = 1; i <= 50; i++)
+            {
+                string name = i == 1 ? baseName : baseName + " (" + i + ")";
+                string lnk = Path.Combine(dir, name + ".lnk");
+                string plain = Path.Combine(dir, name);
+
+                // 同名文件夹（或同名无扩展名文件）存在时，打开这个路径会跑到别的东西上，必须换名
+                if (Directory.Exists(plain) || File.Exists(plain))
+                {
+                    note = "「" + name + "」已被同名文件夹占用";
+                    Log.Line("      跳过名字「" + name + "」：目录里已有同名文件夹/文件 " + plain);
+                    continue;
+                }
+                // 少见但可能：一个叫 "名字.lnk" 的文件夹
+                if (Directory.Exists(lnk))
+                {
+                    note = "「" + name + ".lnk」被同名文件夹占用";
+                    Log.Line("      跳过名字「" + name + "」：已存在同名文件夹 " + lnk);
+                    continue;
+                }
+
+                if (File.Exists(lnk))
+                {
+                    string target = TryReadShortcutTarget(lnk);
+                    if (!string.IsNullOrEmpty(target) && SamePath(target, exePath))
+                    {
+                        reused = true;
+                        return lnk;
+                    }
+                    note = "「" + name + "」已有快捷方式指向 " + (string.IsNullOrEmpty(target) ? "(读不出目标)" : target);
+                    Log.Line("      跳过名字「" + name + "」：已有同名快捷方式指向 " +
+                            (string.IsNullOrEmpty(target) ? "(读不出目标)" : target) + "，不覆盖");
+                    continue;
+                }
+
+                return lnk;
+            }
+
+            // 兜底：极端情况下加时间戳
+            string fallback = baseName + "_" + DateTime.Now.ToString("yyyyMMdd_HHmmss");
+            note = "同名冲突太多，改用 " + fallback;
+            Log.Line("      [警告] 同名冲突太多，改用 " + fallback);
+            return Path.Combine(dir, fallback + ".lnk");
+        }
+
+        private static bool SamePath(string a, string b)
+        {
+            try { return string.Equals(Path.GetFullPath(a), Path.GetFullPath(b), StringComparison.OrdinalIgnoreCase); }
+            catch { return false; }
         }
 
         private static void CreateShortcut(InstallOptions opt, string gameDir, string exePath, InstallResult r)
@@ -694,12 +759,20 @@ namespace ProjectionSetup
                 }
             }
 
-            string name = SanitizeShortcutName(opt.ShortcutName);
-            string lnk = Path.Combine(dir, name + ".lnk");
+            string baseName = SanitizeShortcutName(opt.ShortcutName);
+            bool reused;
+            string note;
+            string lnk = PickShortcutPath(dir, baseName, exePath, out reused, out note);
             if (customDir || customName)
                 Log.Line("      快捷方式使用自定义位置（测试用，不影响桌面真名快捷方式）: " + lnk);
-
-            if (File.Exists(lnk))
+            if (!string.Equals(Path.GetFileNameWithoutExtension(lnk), baseName, StringComparison.OrdinalIgnoreCase))
+            {
+                r.Warnings.Add("快捷方式最终名为「" + Path.GetFileName(lnk) + "」（" + (note ?? "原名冲突") + "）");
+                Log.Line("      最终快捷方式名: " + Path.GetFileName(lnk) + "  ← " + (note ?? "原名冲突"));
+            }
+            if (reused)
+                Log.Line("      同名快捷方式已存在且指向本安装的 exe，直接更新它: " + lnk);
+            else if (File.Exists(lnk))
             {
                 string old = TryReadShortcutTarget(lnk);
                 if (!string.IsNullOrEmpty(old)) Log.Line("      同名快捷方式已存在，当前指向: " + old);

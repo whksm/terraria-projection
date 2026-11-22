@@ -27,7 +27,7 @@ dotnet publish installer/SetupApp -c Release -r win-x64 --self-contained true `
 | `Setup.exe "D:\path\to\Terraria"` | 打开界面并预填目录 |
 | `Setup.exe --silent "D:\path\to\Terraria"` | 静默安装，退出码 0=成功、非 0=失败 |
 | `Setup.exe --silent --no-shortcut "目录"` | 静默安装但跳过桌面快捷方式 |
-| `Setup.exe --shortcut-name "名字"` | 改快捷方式文件名（不带 `.lnk`），默认 `泰拉瑞亚投影MOD` |
+| `Setup.exe --shortcut-name "名字"` | 改快捷方式文件名（不带 `.lnk`），默认 `启动泰拉瑞亚投影MOD` |
 | `Setup.exe --shortcut-dir "目录"` | 快捷方式放到指定目录而不是桌面（测试用） |
 | `Setup.exe --detect-only` | 只检测游戏目录，不写任何文件 |
 | `Setup.exe --selftest` | 环境自检（内嵌资源 / WinForms / COM / 代码页），不碰游戏 |
@@ -51,14 +51,31 @@ UTF-8、带毫秒时间戳，开头写启动环境、结尾写结果汇总。任
    之后用「文件里是否出现 `ProjectionMod` 引用」校验补丁真的生效，并记录打补丁前后的大小。
 5. 复制 `ProjectionMod.dll`、`0Harmony.dll`、`ProjectionMod.bp`（已存在不覆盖）、`ProjectionMod.ico`、
    `卸载.bat`、`投影MOD_使用说明.md`，每个文件校验写入长度。
-6. 建桌面快捷方式 `泰拉瑞亚投影MOD.lnk`（带图标）：先用 IShellLink COM，失败回退到内嵌的
+6. 建桌面快捷方式（带图标，默认名 `启动泰拉瑞亚投影MOD`）：先用 IShellLink COM，失败回退到内嵌的
    `shortcut.ps1`（和 setup.cmd 同一条已验证路径），再失败用生成的自定义路径脚本。
    文件名/目录可以用 `--shortcut-name` / `--shortcut-dir` 改。快捷方式失败只是警告，不算安装失败。
 
+## 快捷方式命名规则（避免和文件夹撞名）
+
+Windows 上如果同一个目录里既有文件夹 `X` 又有快捷方式 `X.lnk`（资源管理器默认隐藏扩展名，看起来同名），
+用 `Start-Process "…\X"` 或资源管理器打开那个路径时，会**解析到 `X.lnk` 并直接启动它的目标程序**，
+而不是打开文件夹。实测确认：`目标\` + `目标.lnk`(notepad) → 打开 `目标` 启动记事本；删掉 .lnk 才正常。
+
+所以安装器的规则是：
+
+- 默认名 `启动泰拉瑞亚投影MOD`（前缀「启动」就是为了和常见的 `泰拉瑞亚投影MOD` 文件夹区分开）。
+- 建之前先检查目标目录（默认桌面）：**同名文件夹**（大小写不敏感）、同名无扩展名文件、
+  `名字.lnk` 是同名文件夹 —— 任一命中就换名，依次试 `名字 (2)`、`名字 (3)`…，最多 50 次。
+- 已有同名 `.lnk`：
+  - 指向本次安装的 `Terraria.exe` → 直接复用更新（重复安装幂等，不会一直加后缀）；
+  - 指向别的地方 → **不覆盖**，换名下一位，并在日志里写明原来指向哪里。
+- 卸载：`卸载.bat` 只还原 `Terraria.exe` 并列出可选清理项，**不删除任何快捷方式**，
+  因此不可能误删用户的其他快捷方式；需要清理时手动删安装日志里记录的那个 `.lnk`。
+
 ## 实测纪律（重要）
 
-1. **绝不覆盖用户桌面上真正的 `泰拉瑞亚投影MOD.lnk`**。实测时用
-   `--shortcut-name 投影MOD_安装测试` 或 `--shortcut-dir <临时目录>`，
+1. **绝不覆盖用户桌面上真正的快捷方式**（用户现在用的是 `启动泰拉瑞亚投影MOD.lnk`）。
+   实测时用 `--shortcut-name 投影MOD_安装测试` 或 `--shortcut-dir <临时目录>`，
    或者干脆 `--no-shortcut`。测完删掉测试快捷方式和测试目录。
 2. **验收标准里不包含"启动游戏"**。测试副本只有 `Terraria.exe`，没有 `steam_api.dll` 和 `Content`，
    启动必然报 `System.DllNotFoundException: Unable to load DLL 'steam_api'`——这是副本不完整，
@@ -79,6 +96,10 @@ UTF-8、带毫秒时间戳，开头写启动环境、结尾写结果汇总。任
 - 按「不碰真桌面快捷方式」的约束复测：`--shortcut-name 投影MOD_安装测试 --shortcut-dir <临时目录>`，
   三次安装（全新 / 重复 / `--no-shortcut`）退出码都是 0，测试 lnk 建在临时目录里，
   桌面真 shortcut 的 SHA256 与修改时间在测试前后**完全一致**；`--shortcut-dir` 指向不存在的目录会自动创建
+- 快捷方式命名矩阵实测（全部 `--shortcut-dir` 到临时目录，退出码都是 0）：
+  空目录 → `启动泰拉瑞亚投影MOD.lnk`；预置同名文件夹 → `启动泰拉瑞亚投影MOD (2).lnk`；
+  预置**仅大小写不同**的同名文件夹（`…投影mod`）→ 同样 `(2)`；预置同名但指向 notepad 的 `.lnk` →
+  `(2)` 且那个 notepad 快捷方式一个字节都没改；重复安装 → 复用原名字，不会越加越多后缀
 
 ## 环境坑（排查记录）
 

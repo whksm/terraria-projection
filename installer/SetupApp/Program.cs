@@ -367,7 +367,7 @@ namespace ProjectionSetup
             sb.AppendLine("  Setup.exe \"D:\\path\\to\\Terraria\"            打开界面并预填游戏目录");
             sb.AppendLine("  Setup.exe --silent \"D:\\path\\to\\Terraria\"   静默安装，退出码 0=成功、非 0=失败");
             sb.AppendLine("  Setup.exe --silent --no-shortcut \"目录\"      静默安装但不建桌面快捷方式");
-            sb.AppendLine("  Setup.exe --shortcut-name \"自定义名字\"        改快捷方式名（不带 .lnk）");
+            sb.AppendLine("  Setup.exe --shortcut-name \"自定义名字\"        改快捷方式名（不带 .lnk，默认 " + Installer.DefaultShortcutBaseName + "）");
             sb.AppendLine("  Setup.exe --shortcut-dir \"目录\"              快捷方式放到指定目录而不是桌面");
             sb.AppendLine("  Setup.exe --detect-only                      只检测游戏目录，不安装");
             sb.AppendLine("  Setup.exe --selftest                         环境自检（不碰游戏）");
@@ -380,6 +380,10 @@ namespace ProjectionSetup
             sb.AppendLine();
             sb.AppendLine("测试建议：用 --shortcut-name 测试名 或 --shortcut-dir 临时目录，避免覆盖桌面上的真快捷方式；");
             sb.AppendLine("          只验证补丁/复制/幂等，不要试图启动游戏副本（缺 steam_api.dll 与 Content）。");
+            sb.AppendLine();
+            sb.AppendLine("快捷方式命名：默认「" + Installer.DefaultShortcutBaseName + "」。");
+            sb.AppendLine("  桌面上若有同名文件夹（大小写不敏感），打开该路径会被解析成 .lnk 直接启动游戏，");
+            sb.AppendLine("  所以安装器会先查同名文件夹/同名别人的快捷方式，冲突就自动加 (2)(3) 后缀，绝不覆盖别人的。");
             return sb.ToString();
         }
     }
