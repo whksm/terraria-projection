@@ -96,6 +96,7 @@ namespace ProjectionSetup
             new PayloadFile("pl.icon.ico", "ProjectionMod.ico", false),
             new PayloadFile("pl.Uninstall.bat", "卸载.bat", false),
             new PayloadFile("pl.Readme.md", "投影MOD_使用说明.md", false),
+            new PayloadFile("pl.Editor.html", "蓝图编辑器.html", false),
         };
 
         // ------------------------------------------------------------------
@@ -351,6 +352,7 @@ namespace ProjectionSetup
                 {
                     "Terraria.exe", backupName, "ProjectionMod.dll", "0Harmony.dll",
                     "ProjectionMod.bp", "ProjectionMod.ico", "卸载.bat", "投影MOD_使用说明.md",
+                    "蓝图编辑器.html",
                 };
                 foreach (string name in keyFiles)
                 {

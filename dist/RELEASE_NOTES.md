@@ -1,8 +1,14 @@
 # v1.3.0 — 墙与物件支持
 
-> **发布资产**：`TerrariaProjection_v1.3.0.zip`（约 1.1 MB）——解压后双击 `安装.bat` 即装。
-> 单文件安装器 `TerrariaProjection_Setup.exe` 本轮**没有重打**（不为一个版本重发 64 MB 运行时）；
-> 需要双击即装的用户可用 v1.2.0 的 exe 先装、再用本 zip 覆盖，或直接用 zip 方案。
+> ✅ **双击运行即可**：Windows 会弹出 **UAC 权限提示**，点「**是**」允许——安装器要写游戏目录并替换
+> `Terraria.exe`，所以必须有管理员权限。
+> 如果双击没反应（部分系统 / 杀软会拦截），请右键 → **以管理员身份运行**。
+> 用 `安装.bat` / `setup.cmd`（zip 方案）时批处理不会自己弹 UAC：**右键 → 以管理员身份运行**，
+> 或在管理员命令提示符里执行。
+
+> **发布资产**：`TerrariaProjection_v1.3.0.zip`（约 1.1 MB）——解压后**右键 `安装.bat` → 以管理员身份运行**即装。
+> 单文件安装器已重打为 **`requireAdministrator`** 版本（双击即弹 UAC），但本 Release 仍只附 zip——
+> 不为一个版本重发 64 MB 自包含运行时（与 v1.2.0 的做法一致）。
 > 安装器源码已升到 **v1.3.0**，`release/setup.cmd`、`release/卸载.bat` 均为新版。
 
 ## 游戏版本：1.4.6.1 已实测可用
@@ -72,7 +78,8 @@
   在某些 exe 上会漏判，重复注入会让 `Bootstrap.Init` 被调用两次）；
 - 新增命令行：`--check`（只读看状态）、`--restore`（按版本还原）；
   `setup.cmd` 同步支持 `--check` / `--restore` / `--backup-only`；
-- 安装器版本 `1.2.0 → 1.3.0`（下次构建生效）。
+- 安装器版本 `1.2.0 → 1.3.0`（已构建并验证：`FileVersion 1.3.0.0`，清单为 `requireAdministrator`，
+  双击即弹 UAC）。
 
 ## 文档
 

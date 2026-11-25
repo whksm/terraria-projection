@@ -55,6 +55,7 @@
     <EmbeddedResource Include="..\..\release\卸载.bat" LogicalName="pl.Uninstall.bat" />
     <EmbeddedResource Include="..\..\release\使用说明.md" LogicalName="pl.Readme.md" />
     <EmbeddedResource Include="..\..\release\shortcut.ps1" LogicalName="pl.shortcut.ps1" />
+    <EmbeddedResource Include="..\..\release\蓝图编辑器.html" LogicalName="pl.Editor.html" />
   </ItemGroup>
 
 </Project>

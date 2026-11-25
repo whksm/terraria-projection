@@ -39,12 +39,19 @@
 
 ## 安装
 
+> ✅ **双击运行即可**：Windows 会弹出 **UAC 权限提示**，点「**是**」允许——安装器要写游戏目录并替换
+> `Terraria.exe`，所以必须有管理员权限。
+> 如果双击没反应（部分系统 / 杀软会拦截），请右键 → **以管理员身份运行**。
+> 用 `安装.bat` / `setup.cmd`（zip 方案）时批处理不会自己弹 UAC：**右键 → 以管理员身份运行**，
+> 或在管理员命令提示符里执行。
+
 > **不需要装 .NET**：下面方式一的 exe 自带运行时；方式二用的是系统自带的 .NET Framework。
 
-### 方式一：单文件 exe（双击即装，无需 .NET）
+### 方式一：单文件 exe（无需 .NET）
 
 1. 关掉正在运行的泰拉瑞亚
-2. 下载 Releases 里的 **`TerrariaProjection_Setup.exe`**（约 64 MB，把 .NET 运行时一起打包了，所以体积偏大），双击
+2. 下载 Releases 里的 **`TerrariaProjection_Setup.exe`**（约 64 MB，把 .NET 运行时一起打包了，所以体积偏大），
+   **双击运行**，在 UAC 提示框点「是」（没有弹窗就右键 → 以管理员身份运行）
 3. 它会自动：找游戏目录（Steam 注册表 / 常见路径，找不到弹目录选择框）→
    按 exe 版本备份原版（`Terraria_backup_<版本>_vanilla.exe`）→ 给入口打补丁 →
    复制插件/卸载脚本/说明 → 在桌面建带图标的快捷方式
@@ -75,7 +82,7 @@ TerrariaProjection_Setup.exe --silent --shortcut-dir "D:\tmp\lnk" --shortcut-nam
 ### 方式二：zip + setup.cmd（回退方案）
 
 1. 关掉正在运行的泰拉瑞亚
-2. 下载 Releases 里的 zip，解压后**双击 `安装.bat`（或 `setup.cmd`）**
+2. 下载 Releases 里的 zip，解压后**右键 `安装.bat`（或 `setup.cmd`）→ 以管理员身份运行**
 3. 安装器会自动：找游戏目录 → 按 exe 版本备份原版（`Terraria_backup_<版本>_vanilla.exe`）→
    打补丁 → 复制插件 → **创建带图标的桌面快捷方式**
 4. 从桌面「启动泰拉瑞亚投影MOD」或 Steam 正常启动

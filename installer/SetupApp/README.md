@@ -4,6 +4,12 @@
 它把 `release/` 里的全部载荷内嵌进 exe，运行时解压到临时目录再调用，行为与
 `release/setup.cmd`（zip 回退方案，两份脚本逻辑同步维护）保持一致。
 
+> ✅ **双击运行即可**：Windows 会弹出 **UAC 权限提示**，点「**是**」允许——安装器要写游戏目录并替换
+> `Terraria.exe`，所以必须有管理员权限。
+> 如果双击没反应（部分系统 / 杀软会拦截），请右键 → **以管理员身份运行**。
+> 用 `安装.bat` / `setup.cmd`（zip 方案）时批处理不会自己弹 UAC：**右键 → 以管理员身份运行**，
+> 或在管理员命令提示符里执行。
+
 ## 构建
 
 ```powershell
@@ -18,6 +24,14 @@ dotnet publish installer/SetupApp -c Release -r win-x64 --self-contained true `
 
 产物：`installer\SetupApp\bin\Release\net8.0-windows\win-x64\publish\Setup.exe`
 （单文件约 64 MB，目录里没有别的 dll）。
+
+> **`app.manifest` 必须是 `requireAdministrator`**（`SetupApp.csproj` 的 `ApplicationManifest` 已指向它）：
+> 安装器要写游戏目录、替换 `Terraria.exe`。写成 `asInvoker` 时，普通权限下双击会**静默失败/没反应**。
+> 改完 manifest 要重跑 `publish.ps1`，并用字节搜索确认成品里是 `requireAdministrator`：
+> ```powershell
+> $t = [Text.Encoding]::ASCII.GetString([IO.File]::ReadAllBytes('dist\TerrariaProjection_Setup.exe'))
+> $t.Contains('level="requireAdministrator"')   # 必须为 True
+> ```
 
 ## 用法
 
@@ -55,7 +69,7 @@ UTF-8、带毫秒时间戳，开头写启动环境、结尾写结果汇总。任
    之后校验成品里真出现 `ProjectionMod` 标记，再经「游戏目录里的 `.new` → 原子改名」替换 `Terraria.exe`。
    已经打过补丁的 exe 直接跳过注入（幂等，不会把 `Bootstrap.Init` 注入两次）。
 5. 复制 `ProjectionMod.dll`、`0Harmony.dll`、`ProjectionMod.bp`（已存在不覆盖）、`ProjectionMod.ico`、
-   `卸载.bat`、`投影MOD_使用说明.md`，每个文件校验写入长度。
+   `卸载.bat`、`投影MOD_使用说明.md`、`蓝图编辑器.html`，每个文件校验写入长度。
 6. 建桌面快捷方式（带图标，默认名 `启动泰拉瑞亚投影MOD`）：先用 IShellLink COM，失败回退到内嵌的
    `shortcut.ps1`（和 setup.cmd 同一条已验证路径），再失败用生成的自定义路径脚本。
    文件名/目录可以用 `--shortcut-name` / `--shortcut-dir` 改。快捷方式失败只是警告，不算安装失败。

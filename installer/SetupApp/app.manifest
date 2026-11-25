@@ -5,8 +5,9 @@
   <trustInfo xmlns="urn:schemas-microsoft-com:asm.v2">
     <security>
       <requestedPrivileges xmlns="urn:schemas-microsoft-com:asm.v3">
-        <!-- 装到游戏目录不需要管理员权限：按调用者权限运行 -->
-        <requestedExecutionLevel level="asInvoker" uiAccess="false" />
+        <!-- 装到游戏目录要写 Terraria.exe：强制提权，双击即弹 UAC（用户点「是」才继续）。
+             不要改回 asInvoker——那样普通权限下写游戏目录会失败/静默没反应。 -->
+        <requestedExecutionLevel level="requireAdministrator" uiAccess="false" />
       </requestedPrivileges>
     </security>
   </trustInfo>
