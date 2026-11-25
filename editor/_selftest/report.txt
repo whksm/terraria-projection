@@ -1,0 +1,86 @@
+
+=== A  release/ProjectionMod.bp  读入→保存 逐行比对 ===
+  PASS  解析行数 = 数据行数(13)   [cells=13 bad=0 dup=0]
+  PASS  没有坏行   [bad=0]
+  PASS  尺寸 5x5   [5x5]
+  PASS  保存行数 = 原始数据行数   [13 vs 13]
+  PASS  每行 12 列   [badCols=0]
+  PASS  已有字段逐字节相同，差值 = 0   [diff=0]
+  仅做默认值补齐：104 个字段（frameX/Y=-1, wire/actuator/slope/halfBrick/paint/wallPaint=0）
+  首行: 0,0,1,0  →  0,0,1,0,-1,-1,0,0,0,0,0,0
+
+=== B  stress-120x80.bp  读入→保存 逐字节比对 ===
+  PASS  无坏行   [bad=0]
+  PASS  源文件全部是 12 列
+  PASS  尺寸 120x80   [120x80 cells=3033]
+  PASS  序列化结果与原文件逐字节相同   [len 85404 vs 85404]
+  PASS  覆盖 slope 1/2/3/4   [slope1=19 slope2=19 slope3=9 slope4=9]
+  PASS  覆盖半砖   [halfBrick=15]
+  PASS  覆盖促动器   [actuator=69]
+  PASS  覆盖 4 色电线（含 15）   [wire=15 的格子 4，任一线 237]
+  PASS  覆盖方块漆 + 墙漆   [paint=34 wallPaint=21]
+  PASS  覆盖纯墙格   [pureWall=81]
+  PASS  覆盖非 -1 帧   [frames=3]
+
+=== C  mixed.bp  4/6/12 列 + 坏行 ===
+  PASS  有效格子 7 个   [cells=7]
+  PASS  坏行 4 行被跳过   [bad=4]
+  PASS  重复坐标 1 行被忽略   [dup=1]
+  PASS  6 列行读到 frameX/frameY   [0,0]
+  PASS  5 列行按 4 列处理，帧 = -1   [-1,-1]
+  PASS  12 列行读到全部字段   [1/1/2/1/3/4]
+  PASS  负 frameX/frameY 保留   [-5,-7]
+  PASS  保存结果完全符合预期
+  覆盖: 0/0 | 4/1  (bad/dup)
+
+=== D  模拟游戏端逐列解析（int/ushort/short/byte 取值范围） ===
+  PASS  release 输出全部可被游戏端解析   [13 行, 失败 0]
+  PASS  stress 输出全部可被游戏端解析   [3033 行, 失败 0]
+  PASS  stress 输出 12 列
+
+=== E  保存→读入→再保存 幂等 ===
+  PASS  第二次保存与第一次相同
+  PASS  release 二次保存稳定
+
+=== F  映射表 预览/应用 ===
+  PASS  解析 2 条映射
+  PASS  预览命中数与遍历统计一致   [hits=2573 manual=2573]
+  PASS  应用后替换格数 = 预览数   [2573 vs 2573]
+  PASS  1 → 477 数量正确   [477=2500 原 type1=2500]
+  PASS  38 → 39 数量正确   [39=73 原 type38=73]
+  PASS  未命中的格子一个都没动
+
+=== G  边界情况 ===
+  PASS  空文本 → 0 格
+  PASS  只有注释 → 0 格
+  PASS  CRLF 换行正常
+  PASS  BOM 正常
+  PASS  字段两端空格正常
+  PASS  type 65536 越界被跳过
+  PASS  type -1 被跳过
+  PASS  "1.0" 不是合法整数
+  PASS  促动器列非 0 即真（同 C#）
+  PASS  空文件序列化为空串
+  PASS  type=0/wall=0 的格子仍保留（行数据不丢）
+
+=== H  一键替换 collectReplaceHits / applyReplaceInPlace ===
+  PASS  命中数 = type 1 的格子数   [2500 vs 2500]
+  PASS  命中的确实都是 type 1
+  PASS  源 == 目标 → 0 命中
+  PASS  不存在的源 → 0 命中
+  PASS  源/目标非数字 → 0 命中
+  PASS  替换格数 = 命中数   [2500 vs 2500]
+  PASS  总格数不变   [3033 vs 3033]
+  PASS  每格 type 都变成 477   [bad=0]
+  PASS  wall/frame/slope/wire/paint 等字段逐格未变   [bad=0]
+  PASS  477 总数 = 替换前的 1 的数量   [2500 vs 2500]
+  PASS  未命中的格子一格没动
+  PASS  选区内只命中 10x5 = 50 格   [hits=50]
+  PASS  选区内替换 50 格   [in=50]
+  PASS  选区外没有 477   [out=0]
+  PASS  替换后仍是 12 列
+  PASS  替换后可被游戏端解析   [3033 行，失败 0]
+
+=========================================
+RESULT: ALL PASS (63 checks)
+=========================================

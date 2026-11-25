@@ -1,0 +1,106 @@
+
+=== UI 交互（合成 PointerEvent 走完整事件链） ===
+  PASS  初始为空   [cells=0]
+  PASS  笔刷切到 3x3   [size=3]
+  PASS  方块设置为 38   [type=38]
+  PASS  画笔落了 3x3 = 9 格   [cells=9]
+  PASS  新格子 frameX/Y = -1
+  PASS  Ctrl+Z 撤销后回到 0 格   [cells=0]
+  PASS  Ctrl+Shift+Z 重做后 9 格   [cells=9]
+  PASS  Ctrl+Y 也能重做   [cells=9]
+  PASS  工具切到橡皮
+  PASS  橡皮清空 3x3   [cells=0]
+  PASS  属性写入正确   [{"wire":5,"paint":3,"slope":2,"half":1}]
+  PASS  清空属性后 brush.type = 0
+  PASS  吸管取回全部属性   [{"t":38,"w":5,"p":3,"s":2,"h":1}]
+  PASS  预览命中 1 格   [preview=1]
+  PASS  应用后类型变成 477   [type=477]
+  PASS  替换可撤销   [undo=4]
+  PASS  撤销后类型回到 38   [type=38]
+  PASS  保存输出 12 列   [20,20,38,0,-1,-1,5,0,2,1,3,0]
+  PASS  保存内容与内存一致   [1 vs 1]
+
+=== 渲染语义（读 canvas 像素） ===
+  PASS  画布 DPR 取样基准   [dpr=1]
+  画布 930x774 (CSS 930x774)，cam=0.00,0.00 zoom=40，格子数 6
+  px(4,.15,.85)=true px(4,.5,.5)=true px(5,.5,.5)=true px(3,.5,.5)=true
+  PASS  整块：中心是方块
+  PASS  半砖：上半为空 / 下半为方块   [top=false bottom=true]
+  PASS  斜坡1：右下有 / 左上无   [br=true tl=false]
+  PASS  斜坡2：左下有 / 右上无   [bl=true tr=false]
+  PASS  斜坡3：右上有 / 左下无   [tr=true bl=false]
+  PASS  斜坡4：左上有 / 右下无   [tl=true br=false]
+  PASS  右键拖动改变视图   [camX 0.00 → -2.00 (期望 -2.00)]
+  PASS  选区 4x3   [{"x0":30,"y0":30,"x1":33,"y1":32}]
+  PASS  填充选区加了 12 格   [12 新增]
+
+=== 一键替换（UI：取源 → 目标 → 替换 → 撤销/重做 → 选区） ===
+  PASS  初始状态替换按钮禁用
+  PASS  初始提示包含"源方块"   [请先选择源方块（可点「点画布取源」）]
+  PASS  取源模式已开启
+  PASS  源输入框 = 1   [value=1]
+  PASS  取源后自动退出取源模式
+  PASS  源名称显示 = 石块   [石块]
+  PASS  源行有高亮 class
+  PASS  目标名称显示 = Golf Grass（477 无中文名，回退英文名）   [Golf Grass]
+  PASS  源≠目标时按钮可用
+  PASS  命中数预览显示 2,500   [全图命中 2,500 格 · 石块(1) → Golf Grass(477)]
+  PASS  探针格：斜坡格 slope=1   [slope=1]
+  PASS  探针格：电线格 wire=4   [wire=4]
+  PASS  替换前 type1 = 2500 / type477 = 0   [2500 / 0]
+  PASS  替换后 477 = 2500   [477=2500]
+  PASS  替换后 1 已清空   [1=0]
+  PASS  斜坡格只换 type、slope 保留   [type=477 slope=1]
+  PASS  电线格只换 type、wire 保留   [type=477 wire=4]
+  PASS  状态栏显示替换结果   [石块(1) → Golf Grass(477)：替换 2,500 格]
+  PASS  面板显示已替换 + 可撤销提示   [已替换 2,500 格（Ctrl+Z 可撤销）]
+  PASS  Ctrl+Z 回退（1 恢复 2500 / 477 归零）   [2500 / 0]
+  PASS  Ctrl+Shift+Z 重做（477 = 2500）   [477=2500]
+  PASS  Ctrl+Y 也能重做   [477=2500]
+  PASS  源 == 目标时按钮禁用
+  PASS  源为空时按钮禁用
+  PASS  源为空时提示"请先选择源方块"   [请先选择源方块（可点「点画布取源」）]
+  PASS  撤销后回到 2500 个石块   [1=2500]
+  PASS  拖出 10×5 选区   [{"x0":0,"y0":60,"x1":9,"y1":64}]
+  PASS  有选区后勾选框可用
+  PASS  勾选前是"全图"   [全图命中 2,500 格 · 石块(1) → 灰砖(38)]
+  PASS  勾选后提示"选区内"   [选区内命中 50 格 · 石块(1) → 灰砖(38)]
+  PASS  选区内命中 50 格   [选区内命中 50 格 · 石块(1) → 灰砖(38)]
+  PASS  只替换选区内 50 格   [新增 50]
+  PASS  选区外石块还在   [type=1]
+  PASS  选区内已变灰砖   [type=38]
+  PASS  全图石块少了 50   [1=2450]
+  PASS  状态栏注明"仅选区内"   [石块(1) → 灰砖(38)：替换 50 格（仅选区内）]
+
+=== 全量名称表（754 条）+ 调色板搜索 + 悬停提示 ===
+  PASS  内联名称表 754 条   [count=754]
+  PASS  有中文名的 519 条   [zh=519]
+  PASS  tileName(1) = 石块   [石块]
+  PASS  tileName(38) = 灰砖   [灰砖]
+  PASS  tileName(19) = 木平台   [木平台]
+  PASS  tileName(367) = 大理石块   [大理石块]
+  PASS  无中文名回退英文名（477 = Golf Grass）   [Golf Grass]
+  PASS  表外 ID 仍显示 ID n   [ID 9000]
+  PASS  tileLabel(12) = 名称(12)   [修复的生命水晶(12)]
+  PASS  调色板条目数 = 754   [rows=754]
+  PASS  调色板角标显示全量 754   [全部 754 条]
+  PASS  中文搜索「平台」有命中   [hits=2 ids=19,427]
+  PASS  中文搜索「平台」命中 木平台(19)   [ids=19,427]
+  PASS  英文搜索「brick」有命中   [hits=78]
+  PASS  英文搜索「brick」命中 灰砖(38)   [ids=38,39,41,43,44,45,46,47,75,76,118,119]
+  PASS  ID 搜索「472」精确命中 1 条   [ids=472]
+  PASS  ID 472 显示真名   [铁砖Iron Brick472]
+  PASS  多词搜索「brick 47」取交集   [ids=47,347,472,473,478]
+  PASS  搜不到时给提示   [没有匹配项，可直接在上方「方块/墙」里输入 ID]
+  PASS  全量配色不全是一个色   [distinct=399/400]
+  PASS  悬停提示已显示   [on]
+  PASS  悬停提示 = (10,60) 石块(1)   [(10,60) 石块(1)]
+  PASS  悬停提示带属性副标题（斜坡 1）   [(10,59) 石块(1)斜坡1]
+  PASS  空白格显示"空"   [(60,200) 空这一格没有方块或墙]
+  PASS  状态栏显示当前画笔名   [画笔 木平台(19)]
+  PASS  当前属性角标同步名称   [ID 19 木平台]
+  PASS  映射表源/目标显示名字   [灰砖 → Golf Grass]
+
+=========================================
+RESULT: ALL PASS (92 checks)
+=========================================
