@@ -19,6 +19,22 @@ install.log
 lib/
 lib/harmony.nupkg.zip
 
+# 视频素材（545 MB，绝不入库；成片走 Release 资产）
+video/
+
+# 日志（install.log 已单独列出，其余运行/部署日志一律不提交）
+*.log
+
+# 开发期截图（调试用，不是文档配图；编辑器自测截图 + notes 里的过程截图）
+editor/_selftest/shots/
+notes/shots/
+
+# 自动生成的交接草稿
+HANDOVER.md
+
+# 历史废弃文件（旧的单文件安装器源码，已由 installer/SetupApp/ 取代）
+installer/SetupSingle.cs
+
 # 系统
 Thumbs.db
 desktop.ini
