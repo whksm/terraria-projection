@@ -24,7 +24,7 @@ namespace ProjectionSetup
         {
             _cli = cli ?? new CliArgs();
 
-            Text = Installer.AppName + " v" + Installer.Version + "（原版 1.4.5.8）";
+            Text = Installer.AppName + " v" + Installer.Version;
             Font = new Font("Microsoft YaHei UI", 9F);
             ClientSize = new Size(720, 544);
             FormBorderStyle = FormBorderStyle.FixedSingle;
@@ -210,13 +210,19 @@ namespace ProjectionSetup
             {
                 _bar.Value = 100;
                 _status.Text = "安装完成。";
+                string extra = r.NoCleanBackup
+                    ? "\r\n\r\n[重要] 本版本没有干净的原版备份，卸载时将无法还原 exe。\r\n" +
+                      string.Join("\r\n", BackupStore.SteamVerifyHints(r.VersionTag))
+                    : "";
                 MessageBox.Show(this,
                     "安装完成！\r\n\r\n" +
                     "• 启动：桌面「泰拉瑞亚投影MOD」或 Steam 正常启动\r\n" +
-                    "• 卸载：游戏目录里的 卸载.bat\r\n" +
-                    "• 游戏更新后需要重跑本安装器\r\n\r\n" +
-                    "日志：" + (Log.Path ?? "(无法写入日志)"),
-                    Installer.AppName, MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    "• 卸载：游戏目录里的 卸载.bat（只认同版本的原版备份）\r\n" +
+                    "• 原版备份：" + (string.IsNullOrEmpty(r.BackupPath) ? "(没有)" : System.IO.Path.GetFileName(r.BackupPath)) + "\r\n" +
+                    "• 游戏更新后需要重跑本安装器\r\n" + extra +
+                    "\r\n日志：" + (Log.Path ?? "(无法写入日志)"),
+                    Installer.AppName, MessageBoxButtons.OK,
+                    r.NoCleanBackup ? MessageBoxIcon.Warning : MessageBoxIcon.Information);
             }
             else
             {

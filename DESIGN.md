@@ -114,6 +114,10 @@ ProjectionMod.dll
 - 每个 tick：找“距离最近、在放置范围内、且已满足支撑”的待放格 →
   从热键栏/背包选对应物品 → 设 `tileTarget` → 调 `Player.PlaceThing()` →
   校验“物品确实被消耗/格子确实变化”，失败则重试或跳过。
+- 流水线顺序：**方块 → 背景墙 → 物件（frame-important）→ 电线 → 促动器**。
+  物件走 `WorldGen.PlaceObject(x,y,type,mute,style,...)`，不是 `PlaceTile`：帧-重要类型的
+  左上角与 style 由蓝图帧反推（`TileObjectData.TryGetTileBounds` / `GetTileData(Tile)` 的逆运算），
+  放完回写蓝图帧并补 `CallPostPlacementPlayerHook`（箱子等实体数据）。详见 `notes/printer-objects.md`。
 - **合法性由游戏自身保证**（范围、支撑、液体、空间、物品消耗）。
 - 材料来源：背包 → 猪猪存钱罐 → 附近箱子（可配置）。
 - 多人默认禁用（检测 `Main.netMode == NetmodeID.MultiplayerClient` 时弹确认，且需手动开）。

@@ -18,6 +18,10 @@ namespace ProjectionSetup
         public bool ShowHelp;
         public bool ShowVersion;
         public bool DetectOnly;
+        /// <summary>还原模式：用同版本 vanilla 备份还原 Terraria.exe。</summary>
+        public bool Restore;
+        /// <summary>只检查版本/备份状态，不写任何文件。</summary>
+        public bool Check;
         public string GameDir;
         /// <summary>自定义快捷方式名（不带 .lnk）；为空=泰拉瑞亚投影MOD。测试时用测试名，绝不覆盖真名。</summary>
         public string ShortcutName;
@@ -35,6 +39,8 @@ namespace ProjectionSetup
                 else if (low == "--no-shortcut") c.NoShortcut = true;
                 else if (low == "--selftest" || low == "--self-test") c.SelfTest = true;
                 else if (low == "--detect-only") c.DetectOnly = true;
+                else if (low == "--restore") c.Restore = true;
+                else if (low == "--check") c.Check = true;
                 else if (low == "--help" || low == "-h" || low == "/?" || low == "-?") c.ShowHelp = true;
                 else if (low == "--version" || low == "-v") c.ShowVersion = true;
                 else if (low == "--shortcut-name" || low == "-n")
@@ -87,6 +93,8 @@ namespace ProjectionSetup
             if (NoShortcut) parts.Add("--no-shortcut");
             if (SelfTest) parts.Add("--selftest");
             if (DetectOnly) parts.Add("--detect-only");
+            if (Restore) parts.Add("--restore");
+            if (Check) parts.Add("--check");
             if (ShowHelp) parts.Add("--help");
             if (ShowVersion) parts.Add("--version");
             if (!string.IsNullOrWhiteSpace(ShortcutName)) parts.Add("--shortcut-name=" + ShortcutName);
@@ -175,6 +183,17 @@ namespace ProjectionSetup
                     : 0;
             }
 
+            if (cli.Check)
+            {
+                ConOut.Init();
+                return RunCheck(cli);
+            }
+            if (cli.Restore)
+            {
+                ConOut.Init();
+                return RunRestore(cli);
+            }
+
             if (cli.Silent) return RunSilent(cli);
             return RunUi(cli);
         }
@@ -203,9 +222,84 @@ namespace ProjectionSetup
             ConOut.Write(r.Ok ? "安装完成（退出码 0）" : "安装失败（退出码 " + r.ExitCode + "）：" + r.Message);
             if (r.CopiedFiles.Count > 0) ConOut.Write("已复制: " + string.Join(", ", r.CopiedFiles));
             if (!string.IsNullOrEmpty(r.ShortcutPath)) ConOut.Write("快捷方式: " + r.ShortcutPath);
+            if (!string.IsNullOrEmpty(r.BackupPath)) ConOut.Write("原版备份: " + r.BackupPath);
+            if (r.NoCleanBackup)
+            {
+                ConOut.Write("");
+                ConOut.Write("[重要] 本版本没有干净的原版备份，卸载时将无法还原 exe。");
+                foreach (string line in BackupStore.SteamVerifyHints(r.VersionTag)) ConOut.Write(line);
+            }
             ConOut.Write("日志: " + (Log.Path ?? "(不可写)"));
             Log.Close();
             return r.Ok ? (int)ExitCodes.Ok : r.ExitCode;
+        }
+
+        /// <summary>--restore：用同版本 vanilla 备份还原（找不到就报错，绝不盖旧版本）。</summary>
+        private static int RunRestore(CliArgs cli)
+        {
+            ConOut.Init();
+            ConOut.Write(Installer.AppName + " v" + Installer.Version + "  [还原模式]");
+            ConOut.Write("日志: " + (Log.Path ?? "(不可写)"));
+
+            InstallOptions opt = new InstallOptions
+            {
+                GameDir = cli.GameDir,
+                Silent = true,
+                NoShortcut = true,
+                AskGameDir = null,
+                Progress = delegate (int pct, string msg) { ConOut.Write("  " + pct.ToString().PadLeft(3) + "%  " + msg); },
+            };
+
+            InstallResult r = Installer.Restore(opt);
+            ConOut.Write("");
+            ConOut.Write(r.Ok ? "还原完成（退出码 0）" : "还原失败（退出码 " + r.ExitCode + "）：" + r.Message);
+            ConOut.Write("日志: " + (Log.Path ?? "(不可写)"));
+            Log.Close();
+            return r.Ok ? (int)ExitCodes.Ok : r.ExitCode;
+        }
+
+        /// <summary>--check：只打印版本/备份状态，不写任何文件。</summary>
+        private static int RunCheck(CliArgs cli)
+        {
+            ConOut.Write(Installer.AppName + " v" + Installer.Version + "  [检查模式 · 只读]");
+            string how;
+            string dir = Installer.DetectOnly(cli.GameDir, out how);
+            if (string.IsNullOrEmpty(dir) || !File.Exists(Path.Combine(dir, "Terraria.exe")))
+            {
+                ConOut.Write("没有找到游戏目录" + (string.IsNullOrEmpty(dir) ? "" : "（" + dir + " 里没有 Terraria.exe）"));
+                ConOut.Write("日志: " + (Log.Path ?? "(不可写)"));
+                Log.Close();
+                return (int)ExitCodes.GameNotFound;
+            }
+
+            ExeProbe p = BackupStore.Probe(Path.Combine(dir, "Terraria.exe"));
+            ConOut.Write("游戏目录: " + dir + "  （" + how + "）");
+            ConOut.Write("Terraria.exe: 版本 " + (p.VersionTag ?? "(读不出)") + "， " + p.Size + " 字节，" + (p.Patched ? "已打补丁" : "未打补丁"));
+            BackupInfo m = BackupStore.FindMatchingBackup(dir, p.VersionTag);
+            if (m == null) ConOut.Write("本版本原版备份: 没有");
+            else if (m.Patched) ConOut.Write("本版本原版备份: " + m.FileName + "  （但它本身是打过补丁的，不可用）");
+            else ConOut.Write("本版本原版备份: " + m.Path);
+            ConOut.Write("");
+            ConOut.Write("目录里现有的备份文件:");
+            ConOut.Write("  （只读扫描，下面这些都不会被旧版本拿去还原）");
+            foreach (BackupInfo b in BackupStore.ListBackups(dir))
+            {
+                ConOut.Write("  " + b.FileName + "   版本 " + (b.VersionTag ?? "名字里没有版本") + "   " + b.Size + " 字节   " +
+                             (b.Patched ? "已打补丁" : "原版") + (b.Versioned ? "" : "（老命名）"));
+            }
+            ConOut.Write("");
+            if (!p.Patched)
+                ConOut.Write("结论: 当前 exe 是原版，无需还原。");
+            else if (m != null && !m.Patched)
+                ConOut.Write("结论: 已打补丁，且本版本有干净备份，可随时 --restore 还原。");
+            else
+            {
+                ConOut.Write("结论: 已打补丁，但本版本没有干净备份，现在不能还原 exe。");
+                foreach (string line in BackupStore.SteamVerifyHints(p.VersionTag)) ConOut.Write(line);
+            }
+            ConOut.Write("日志: " + (Log.Path ?? "(不可写)"));
+            Log.Close();
+            return 0;
         }
 
         private static int RunUi(CliArgs cli)
@@ -370,11 +464,17 @@ namespace ProjectionSetup
             sb.AppendLine("  Setup.exe --shortcut-name \"自定义名字\"        改快捷方式名（不带 .lnk，默认 " + Installer.DefaultShortcutBaseName + "）");
             sb.AppendLine("  Setup.exe --shortcut-dir \"目录\"              快捷方式放到指定目录而不是桌面");
             sb.AppendLine("  Setup.exe --detect-only                      只检测游戏目录，不安装");
+            sb.AppendLine("  Setup.exe --check \"目录\"                    只打印版本/备份状态（只读，不写文件）");
+            sb.AppendLine("  Setup.exe --restore \"目录\"                  用手头同版本的原版备份还原 Terraria.exe");
             sb.AppendLine("  Setup.exe --selftest                         环境自检（不碰游戏）");
             sb.AppendLine("  Setup.exe --version / --help                 版本 / 帮助");
             sb.AppendLine();
+            sb.AppendLine("备份规则：备份名带版本 Terraria_backup_<版本>_vanilla.exe（版本取 exe 的 FileVersion）。");
+            sb.AppendLine("  只备份未打补丁的 exe；版本一变就重新备份；还原只认同版本备份，");
+            sb.AppendLine("  找不到就报错并让你去 Steam 校验完整性（绝不默默盖旧版本上去）。");
+            sb.AppendLine();
             sb.AppendLine("退出码：0 成功 / 1 取消 / 2 参数错误 / 3 找不到游戏 / 4 游戏正在运行");
-            sb.AppendLine("        5 备份失败 / 6 打补丁失败 / 7 复制文件失败 / 9 未知异常");
+            sb.AppendLine("        5 备份失败 / 6 打补丁失败 / 7 复制文件失败 / 8 没有同版本备份（还原拒绝） / 9 未知异常");
             sb.AppendLine();
             sb.AppendLine("日志：exe 同目录 install.log（不可写时用 %TEMP%\\install.log）");
             sb.AppendLine();

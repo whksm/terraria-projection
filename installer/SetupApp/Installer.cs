@@ -19,6 +19,7 @@ namespace ProjectionSetup
         BackupFailed = 5,
         PatchFailed = 6,
         CopyFailed = 7,
+        NoMatchingBackup = 8,
         Unexpected = 9,
     }
 
@@ -45,6 +46,10 @@ namespace ProjectionSetup
         public string Message = "";
         public string GameDir;
         public string BackupPath;
+        /// <summary>当前 Terraria.exe 的规范化版本（如 1.4.6.1）；读不出为 null。</summary>
+        public string VersionTag;
+        /// <summary>本版本没有干净的原版备份（装完能用，但卸载时还原不了）。</summary>
+        public bool NoCleanBackup;
         public string ShortcutPath;
         public long ExeSizeBefore;
         public long ExeSizeAfter;
@@ -58,7 +63,7 @@ namespace ProjectionSetup
     internal static class Installer
     {
         public const string AppName = "泰拉瑞亚投影MOD 安装器";
-        public const string Version = "1.2.0";
+        public const string Version = "1.3.0";
         private const int TotalSteps = 6;
 
         private sealed class PayloadFile
@@ -135,7 +140,7 @@ namespace ProjectionSetup
                     return Finish(r, opt, sw);
                 }
                 Log.Line("      游戏目录: " + gameDir + "  （来源: " + how + "）");
-                Log.Line("      Terraria.exe: " + new FileInfo(exePath).Length + " 字节, 版本 " + FileVersion(exePath));
+                Log.Line("      Terraria.exe: " + new FileInfo(exePath).Length + " 字节, 版本 " + (BackupStore.ReadVersionTag(exePath) ?? "(读不出)"));
 
                 // ---------- 2/6 检查游戏是否在运行 ----------
                 BeginStep(opt, 2, "检查游戏是否正在运行");
@@ -149,97 +154,168 @@ namespace ProjectionSetup
                 }
                 Log.Line("      没有检测到正在运行的 Terraria.exe");
 
-                // ---------- 3/6 备份 ----------
-                BeginStep(opt, 3, "备份原版 Terraria.exe");
-                string backup = Path.Combine(gameDir, "Terraria_backup_projection.exe");
-                r.BackupPath = backup;
-                if (File.Exists(backup))
+                // ---------- 3/6 备份（按版本，只备份原版） ----------
+                BeginStep(opt, 3, "检查版本 / 备份原版 Terraria.exe");
+                r.ExeSizeBefore = new FileInfo(exePath).Length;
+                int firstOffset;
+                bool readable;
+                r.MarkerBefore = BackupStore.CountMarker(exePath, out firstOffset, out readable);
+                r.VersionTag = BackupStore.ReadVersionTag(exePath);
+                Log.Line("      版本 " + (r.VersionTag ?? "(读不出)") + "，补丁标记 x" + r.MarkerBefore +
+                        (r.MarkerBefore > 0 ? "（已打补丁）" : "（未打补丁）"));
+                if (!readable) Log.Line("      [警告] Terraria.exe 读不完（被占用？），补丁状态不可信");
+
+                bool alreadyPatched = r.MarkerBefore > 0;
+                BackupInfo existing = BackupStore.FindMatchingBackup(gameDir, r.VersionTag);
+                if (r.VersionTag == null)
                 {
-                    Log.Line("      备份已存在，按规则不覆盖: Terraria_backup_projection.exe (" + new FileInfo(backup).Length + " 字节)");
+                    r.NoCleanBackup = true;
+                    r.Warnings.Add("读不出 Terraria.exe 的版本号，无法按版本命名备份");
+                    Log.Line("      [警告] 读不出版本号，无法按版本命名备份（Terraria_backup_<版本>_vanilla.exe），本次不备份");
+                }
+                else if (alreadyPatched)
+                {
+                    if (existing != null && !existing.Patched)
+                    {
+                        r.BackupPath = existing.Path;
+                        Log.Line("      本版本已有干净备份，跳过备份: " + existing.FileName + " (" + existing.Size + " 字节)");
+                        Log.Line("      当前 exe 已打过补丁，不会拿它当原版备份");
+                    }
+                    else
+                    {
+                        if (existing != null)
+                            Log.Line("      [警告] 同名备份本身是打过补丁的，不能当原版: " + existing.FileName);
+                        NoCleanBackup(r, gameDir);
+                    }
+                }
+                else if (existing != null && !existing.Patched)
+                {
+                    r.BackupPath = existing.Path;
+                    Log.Line("      本版本备份已存在且是原版，跳过: " + existing.FileName + " (" + existing.Size + " 字节)");
                 }
                 else
                 {
+                    if (existing != null)
+                        Log.Line("      [警告] 同名备份本身是打过补丁的，用当前原版覆盖: " + existing.FileName);
+                    string target = BackupStore.BackupPath(gameDir, r.VersionTag);
                     try
                     {
-                        File.Copy(exePath, backup, false);
+                        File.Copy(exePath, target, true);
                     }
                     catch (Exception e)
                     {
                         Log.Exception("备份失败", e);
                         r.ExitCode = (int)ExitCodes.BackupFailed;
-                        r.Message = "备份 Terraria.exe 失败：" + e.Message;
+                        r.Message = "备份 Terraria.exe 到 " + Path.GetFileName(target) + " 失败：" + e.Message;
                         return Finish(r, opt, sw);
                     }
-                    long bl = new FileInfo(backup).Length;
-                    Log.Line("      已备份: Terraria_backup_projection.exe (" + bl + " 字节)");
-                    if (bl != new FileInfo(exePath).Length)
+                    long bl = new FileInfo(target).Length;
+                    long el = new FileInfo(exePath).Length;
+                    if (bl != el)
                     {
                         r.ExitCode = (int)ExitCodes.BackupFailed;
-                        r.Message = "备份文件大小和原文件不一致（" + bl + " vs " + new FileInfo(exePath).Length + "）。";
+                        r.Message = "备份文件大小和原文件不一致（" + bl + " vs " + el + "）。";
+                        Log.Line("      [失败] " + r.Message);
+                        return Finish(r, opt, sw);
+                    }
+                    r.BackupPath = target;
+                    Log.Line("      已创建备份: " + Path.GetFileName(target) + " (" + bl + " 字节)");
+                    Log.Line("      目录里其他版本的备份只对各自版本有效，还原时只认同版本：");
+                    BackupStore.LogBackupList(gameDir);
+                }
+
+                // ---------- 4/6 打补丁 ----------
+                BeginStep(opt, 4, "给 Terraria.exe 打补丁");
+                Log.Line("      打补丁前: " + r.ExeSizeBefore + " 字节, ProjectionMod 标记 x" + r.MarkerBefore);
+                if (alreadyPatched)
+                {
+                    // 已打过补丁就不再注入：Patcher 自带的 IsPatched 只认 AssemblyRef 名字，
+                    // 在某些 exe 上会漏判，重复注入会让 Bootstrap.Init 被调用两次。
+                    Log.Line("      当前 exe 已经打过补丁，跳过注入（重复安装是幂等的）");
+                }
+                else
+                {
+                    string tempDir = Path.Combine(Path.GetTempPath(), "ProjectionModSetup_" + Guid.NewGuid().ToString("N").Substring(0, 8));
+                    bool patched = false;
+                    try
+                    {
+                        Directory.CreateDirectory(tempDir);
+                        foreach (PayloadFile f in TempFiles) ExtractResource(f.Resource, Path.Combine(tempDir, f.FileName));
+                        Log.Line("      载荷已解压到临时目录: " + tempDir);
+                        Log.Line("      （Patcher.exe 依赖同目录的 Mono.Cecil.dll / ProjectionMod.dll，工作目录也设为该目录）");
+
+                        string patcher = Path.Combine(tempDir, "Patcher.exe");
+                        // 让 Patcher 只把成品写到临时目录：不碰游戏目录，也不让它按老规则
+                        // 自己建 Terraria_backup_projection.exe（那份备份没有版本号）。
+                        Proc.Result pr = Proc.Run(patcher, "patch \"" + gameDir + "\" \"" + tempDir + "\"", tempDir, 180000);
+                        r.PatcherExitCode = pr.ExitCode;
+                        Log.Line("      Patcher.exe 退出码: " + pr.ExitCode + "  用时 " + pr.ElapsedMs + " ms");
+                        if (!string.IsNullOrWhiteSpace(pr.StdOut))
+                            Log.Line("      Patcher 输出: " + Flatten(pr.StdOut));
+                        if (!string.IsNullOrWhiteSpace(pr.StdErr))
+                            Log.Line("      Patcher 错误输出: " + Flatten(pr.StdErr));
+                        if (!string.IsNullOrEmpty(pr.Error))
+                            Log.Line("      Patcher 执行异常: " + pr.Error);
+
+                        string produced = Path.Combine(tempDir, "Terraria.exe.tmp");
+                        if (!File.Exists(produced))
+                        {
+                            Log.Line("      [失败] Patcher 没有产出补丁成品（" + produced + " 不存在）");
+                        }
+                        else
+                        {
+                            ExeProbe probeOut = BackupStore.Probe(produced);
+                            if (!probeOut.Patched)
+                            {
+                                Log.Line("      [失败] 补丁成品里没有 ProjectionMod 标记，放弃写入");
+                            }
+                            else
+                            {
+                                // 先写到游戏目录里的 .new，校验后再原子改名，避免写坏 Terraria.exe
+                                string staging = exePath + ".new";
+                                File.Copy(produced, staging, true);
+                                File.Move(staging, exePath, true);
+                                patched = true;
+                                Log.Line("      已写入补丁成品: " + new FileInfo(exePath).Length + " 字节");
+                            }
+                        }
+                    }
+                    catch (Exception e)
+                    {
+                        Log.Exception("打补丁失败", e);
+                        string staging = exePath + ".new";
+                        try { if (File.Exists(staging)) File.Delete(staging); } catch { }
+                    }
+                    finally
+                    {
+                        TryDeleteDir(tempDir);
+                    }
+
+                    if (!patched)
+                    {
+                        r.ExitCode = (int)ExitCodes.PatchFailed;
+                        r.Message = "打补丁没成功（Patcher 退出码 " + r.PatcherExitCode + "）。常见原因：游戏正在运行 / Terraria.exe 只读 / exe 结构异常。";
                         Log.Line("      [失败] " + r.Message);
                         return Finish(r, opt, sw);
                     }
                 }
 
-                // ---------- 4/6 打补丁 ----------
-                BeginStep(opt, 4, "给 Terraria.exe 打补丁");
-                r.ExeSizeBefore = new FileInfo(exePath).Length;
-                int firstOffset;
-                r.MarkerBefore = CountMarker(exePath, out firstOffset);
-                Log.Line("      打补丁前: " + r.ExeSizeBefore + " 字节, ProjectionMod 标记 x" + r.MarkerBefore);
-
-                string tempDir = Path.Combine(Path.GetTempPath(), "ProjectionModSetup_" + Guid.NewGuid().ToString("N").Substring(0, 8));
-                try
-                {
-                    Directory.CreateDirectory(tempDir);
-                    foreach (PayloadFile f in TempFiles) ExtractResource(f.Resource, Path.Combine(tempDir, f.FileName));
-                    Log.Line("      载荷已解压到临时目录: " + tempDir);
-                    Log.Line("      （Patcher.exe 依赖同目录的 Mono.Cecil.dll / ProjectionMod.dll，工作目录也设为该目录）");
-
-                    string patcher = Path.Combine(tempDir, "Patcher.exe");
-                    Proc.Result pr = Proc.Run(patcher, "patch \"" + gameDir + "\"", tempDir, 180000);
-                    r.PatcherExitCode = pr.ExitCode;
-                    Log.Line("      Patcher.exe 退出码: " + pr.ExitCode + "  用时 " + pr.ElapsedMs + " ms");
-                    if (!string.IsNullOrWhiteSpace(pr.StdOut))
-                        Log.Line("      Patcher 输出: " + Flatten(pr.StdOut));
-                    if (!string.IsNullOrWhiteSpace(pr.StdErr))
-                        Log.Line("      Patcher 错误输出: " + Flatten(pr.StdErr));
-                    if (!string.IsNullOrEmpty(pr.Error))
-                        Log.Line("      Patcher 执行异常: " + pr.Error);
-                }
-                finally
-                {
-                    TryDeleteDir(tempDir);
-                }
-
                 r.ExeSizeAfter = new FileInfo(exePath).Length;
-                r.MarkerAfter = CountMarker(exePath, out firstOffset);
+                r.MarkerAfter = BackupStore.CountMarker(exePath, out firstOffset);
                 Log.Line("      打补丁后: " + r.ExeSizeAfter + " 字节（变化 " + (r.ExeSizeAfter - r.ExeSizeBefore).ToString("+0;-0;0") +
                         "）, ProjectionMod 标记 x" + r.MarkerAfter + (r.MarkerAfter > 0 ? "（首个偏移 0x" + firstOffset.ToString("X") + "）" : ""));
 
                 if (r.MarkerAfter == 0)
                 {
                     r.ExitCode = (int)ExitCodes.PatchFailed;
-                    r.Message = "打补丁失败：Terraria.exe 里没有出现 ProjectionMod 引用（Patcher 退出码 " + r.PatcherExitCode +
-                                "，文件 " + r.ExeSizeBefore + " -> " + r.ExeSizeAfter + " 字节）。常见原因：游戏正在运行 / 文件只读 / 游戏版本不是 1.4.5.8。";
+                    r.Message = "校验失败：Terraria.exe 里没有出现 ProjectionMod 引用（文件 " + r.ExeSizeBefore + " -> " + r.ExeSizeAfter + " 字节）。";
                     Log.Line("      [失败] " + r.Message);
-                    string leftover = exePath + ".tmp";
-                    if (File.Exists(leftover))
-                    {
-                        try { File.Delete(leftover); Log.Line("      已清理残留: " + leftover); }
-                        catch { Log.Line("      残留文件删不掉: " + leftover); }
-                    }
                     return Finish(r, opt, sw);
                 }
-                if (r.MarkerBefore > 0)
-                    Log.Line("      说明：安装前就已经是打好补丁的状态，本次属于重复安装");
+                if (alreadyPatched)
+                    Log.Line("      说明：安装前就已经是打好补丁的状态，本次属于重复安装，没有重复注入");
                 else
                     Log.Line("      补丁成功：入口已注入 ProjectionMod.Bootstrap.Init");
-                if (r.PatcherExitCode != 0)
-                {
-                    r.Warnings.Add("Patcher 退出码非 0（" + r.PatcherExitCode + "），但补丁标记已存在");
-                    Log.Line("      [警告] Patcher 退出码非 0，不过补丁标记已存在，按成功处理");
-                }
 
                 // ---------- 5/6 复制文件 ----------
                 BeginStep(opt, 5, "复制 Mod 文件到游戏目录");
@@ -270,9 +346,10 @@ namespace ProjectionSetup
                 }
 
                 Log.Line("      游戏目录关键文件:");
+                string backupName = string.IsNullOrEmpty(r.VersionTag) ? "(版本未知，没有版本化备份)" : BackupStore.BackupFileName(r.VersionTag);
                 string[] keyFiles =
                 {
-                    "Terraria.exe", "Terraria_backup_projection.exe", "ProjectionMod.dll", "0Harmony.dll",
+                    "Terraria.exe", backupName, "ProjectionMod.dll", "0Harmony.dll",
                     "ProjectionMod.bp", "ProjectionMod.ico", "卸载.bat", "投影MOD_使用说明.md",
                 };
                 foreach (string name in keyFiles)
@@ -317,6 +394,174 @@ namespace ProjectionSetup
             return ResolveGameDir(null, out how);
         }
 
+        /// <summary>本版本没有干净原版备份：把话说清楚，并给 Steam 校验的补救步骤。</summary>
+        private static void NoCleanBackup(InstallResult r, string exeVersion)
+        {
+            r.NoCleanBackup = true;
+            r.Warnings.Add("本版本（" + (exeVersion ?? "未知") + "）没有干净的原版备份，卸载时将无法还原 exe");
+            Log.Line("      [重要] 本版本" + (exeVersion == null ? "" : "（" + exeVersion + "）") + "没有一份干净的原版备份。");
+            Log.Line("             装上以后可以用，但卸载时还原不了 exe，所以现在别卸载。");
+            Log.Line();
+            foreach (string line in BackupStore.SteamVerifyHints(exeVersion)) Log.Line("      " + line);
+            Log.Line();
+            Log.Line("      目录里现有的备份（都不会被当作本版本的原版）:");
+            BackupStore.LogBackupList(r.GameDir);
+            Log.Line();
+        }
+
+        /// <summary>
+        /// 卸载/还原：只用与当前 exe 版本相同的 vanilla 备份。
+        /// 找不到就明确报错（ExitCodes.NoMatchingBackup）并提示 Steam 校验完整性，
+        /// 绝不用旧版本备份去覆盖 —— 版本错配会让游戏直接崩。
+        /// </summary>
+        public static InstallResult Restore(InstallOptions opt)
+        {
+            InstallResult r = new InstallResult();
+            Stopwatch sw = Stopwatch.StartNew();
+            try
+            {
+                Log.Header();
+                Log.Line("开始还原（静默=" + opt.Silent + "，指定目录=" + (string.IsNullOrEmpty(opt.GameDir) ? "(无，自动检测)" : opt.GameDir) + "）");
+
+                // ---------- 1/4 定位游戏目录 ----------
+                Log.Line("[1/4] 定位游戏目录");
+                string how;
+                string gameDir = ResolveGameDir(opt.GameDir, out how);
+                if (string.IsNullOrEmpty(gameDir) && opt.AskGameDir != null && !opt.Silent)
+                    gameDir = opt.AskGameDir();
+                if (string.IsNullOrEmpty(gameDir))
+                {
+                    r.ExitCode = (int)ExitCodes.GameNotFound;
+                    r.Message = "没有找到泰拉瑞亚游戏目录（需要包含 Terraria.exe 的文件夹）。";
+                    Log.Line("      [失败] " + r.Message);
+                    return Finish(r, opt, sw);
+                }
+                gameDir = NormalizeDir(gameDir);
+                r.GameDir = gameDir;
+                string exePath = Path.Combine(gameDir, "Terraria.exe");
+                if (!File.Exists(exePath))
+                {
+                    r.ExitCode = (int)ExitCodes.GameNotFound;
+                    r.Message = "这个目录里没有 Terraria.exe：" + gameDir;
+                    Log.Line("      [失败] " + r.Message);
+                    return Finish(r, opt, sw);
+                }
+                Log.Line("      游戏目录: " + gameDir + "  （来源: " + how + "）");
+
+                // ---------- 2/4 检查游戏是否在运行 ----------
+                Log.Line("[2/4] 检查游戏是否正在运行");
+                List<int> pids = RunningGamePids(gameDir);
+                if (pids.Count > 0)
+                {
+                    r.ExitCode = (int)ExitCodes.GameRunning;
+                    r.Message = "检测到游戏正在运行（PID " + string.Join(", ", pids) + "），请先完全退出泰拉瑞亚再还原。";
+                    Log.Line("      [失败] " + r.Message);
+                    return Finish(r, opt, sw);
+                }
+
+                // ---------- 3/4 探测当前 exe ----------
+                Log.Line("[3/4] 读取当前 Terraria.exe 的版本与补丁状态");
+                ExeProbe cur = BackupStore.Probe(exePath);
+                r.VersionTag = cur.VersionTag;
+                r.ExeSizeBefore = cur.Size;
+                Log.Line("      版本 " + (cur.VersionTag ?? "(读不出)") + "，" + cur.Size + " 字节，" + (cur.Patched ? "已打补丁" : "未打补丁"));
+
+                if (!cur.Readable)
+                {
+                    r.ExitCode = (int)ExitCodes.NoMatchingBackup;
+                    r.Message = "读不了 Terraria.exe（被占用？），判断不出是否打过补丁，为安全起见不做改动。请关掉游戏后重试。";
+                    Log.Line("      [失败] " + r.Message);
+                    return Finish(r, opt, sw);
+                }
+                if (!cur.Patched)
+                {
+                    r.ExitCode = (int)ExitCodes.Ok;
+                    r.Message = "当前 Terraria.exe 已经是原版，不需要还原";
+                    Log.Line("      当前 Terraria.exe 已经是原版，不需要还原");
+                    LogCleanupHints(gameDir);
+                    return Finish(r, opt, sw);
+                }
+
+                // ---------- 4/4 按版本找备份并还原 ----------
+                Log.Line("[4/4] 找同版本的原版备份并还原");
+                if (cur.VersionTag == null)
+                {
+                    r.ExitCode = (int)ExitCodes.NoMatchingBackup;
+                    r.Message = "读不出当前 Terraria.exe 的版本号，无法确认该用哪一份备份。请关掉游戏后重试；仍读不出就用 Steam 校验游戏文件完整性。";
+                    Log.Line("      [失败] " + r.Message);
+                    return Finish(r, opt, sw);
+                }
+
+                BackupInfo target = BackupStore.FindMatchingBackup(gameDir, cur.VersionTag);
+                if (target == null || target.Patched)
+                {
+                    if (target != null)
+                        Log.Line("      [警告] 同名备份 " + target.FileName + " 内部是打过补丁的，不能当原版");
+                    Log.Line("      [错误] 没有找到与当前版本 " + cur.VersionTag + " 相同、且自身是原版（未打补丁）的备份。");
+                    Log.Line("             为了不把旧版本 exe 盖到这个版本的游戏上（版本错配会崩），拒绝还原。");
+                    Log.Line("             只接受这种名字的备份: " + BackupStore.BackupFileName(cur.VersionTag));
+                    Log.Line();
+                    foreach (string line in BackupStore.SteamVerifyHints(cur.VersionTag)) Log.Line("      " + line);
+                    Log.Line();
+                    Log.Line("      目录里现有的备份（都不会被采用）:");
+                    BackupStore.LogBackupList(gameDir);
+                    r.ExitCode = (int)ExitCodes.NoMatchingBackup;
+                    r.Message = "当前版本 " + cur.VersionTag + " 没有可用的干净备份。请在 Steam 里「验证游戏文件完整性」后重装（验证会清掉补丁）。";
+                    return Finish(r, opt, sw);
+                }
+
+                Log.Line("      找到同版本原版备份: " + target.FileName + " (" + target.Size + " 字节)");
+                try
+                {
+                    File.Copy(target.Path, exePath, true);
+                }
+                catch (Exception e)
+                {
+                    Log.Exception("还原失败", e);
+                    r.ExitCode = (int)ExitCodes.NoMatchingBackup;
+                    r.Message = "复制备份到 Terraria.exe 失败：" + e.Message + "（游戏还在运行？）";
+                    return Finish(r, opt, sw);
+                }
+
+                ExeProbe after = BackupStore.Probe(exePath);
+                r.ExeSizeAfter = after.Size;
+                r.BackupPath = target.Path;
+                Log.Line("      已还原: " + after.Size + " 字节，版本 " + (after.VersionTag ?? "(读不出)") + "，" + (after.Patched ? "仍有补丁标记" : "没有补丁标记"));
+                if (after.Patched || !string.Equals(after.VersionTag, cur.VersionTag, StringComparison.OrdinalIgnoreCase))
+                {
+                    r.ExitCode = (int)ExitCodes.NoMatchingBackup;
+                    r.Message = "还原后校验不通过（版本 " + (after.VersionTag ?? "?") + "，补丁标记 " + (after.Patched ? "仍在" : "已清") + "）。请用 Steam 校验游戏文件完整性后重装。";
+                    Log.Line("      [失败] " + r.Message);
+                    return Finish(r, opt, sw);
+                }
+
+                r.ExitCode = (int)ExitCodes.Ok;
+                r.Message = "还原完成（版本 " + cur.VersionTag + "）";
+                Log.Line("      还原完成");
+                LogCleanupHints(gameDir);
+                return Finish(r, opt, sw);
+            }
+            catch (Exception e)
+            {
+                Log.Exception("还原过程中出现未捕获异常", e);
+                r.ExitCode = (int)ExitCodes.Unexpected;
+                r.Message = "还原过程中出现异常：" + e.GetType().Name + ": " + e.Message;
+                try { return Finish(r, opt, sw); }
+                catch { return r; }
+            }
+        }
+
+        /// <summary>还原成功后告诉用户哪些文件可以删（不自动删，避免误删蓝图）。</summary>
+        public static void LogCleanupHints(string gameDir)
+        {
+            Log.Line();
+            Log.Line("      可选清理（删掉这些就完全移除 mod，不影响游戏）：");
+            foreach (string name in new[] { "ProjectionMod.dll", "0Harmony.dll", "ProjectionMod.ico", "ProjectionMod.log", "卸载.bat", "投影MOD_使用说明.md" })
+                Log.Line("        " + Path.Combine(gameDir, name));
+            Log.Line("        " + Path.Combine(gameDir, "Blueprints") + "   （你保存的蓝图，建议保留）");
+            Log.Line("      备份文件建议留着，下次重装或还原还要用。");
+        }
+
         // ------------------------------------------------------------------
         //  步骤 / 日志
         // ------------------------------------------------------------------
@@ -340,6 +585,9 @@ namespace ProjectionSetup
             Log.Line("结果        : " + (r.Ok ? "成功" : "失败（退出码 " + r.ExitCode + "）"));
             if (!r.Ok) Log.Line("失败原因    : " + r.Message);
             if (!string.IsNullOrEmpty(r.GameDir)) Log.Line("游戏目录    : " + r.GameDir);
+            Log.Line("游戏版本    : " + (r.VersionTag ?? "(读不出)"));
+            Log.Line("原版备份    : " + (string.IsNullOrEmpty(r.BackupPath) ? "(没有)" : r.BackupPath) +
+                    (r.NoCleanBackup ? "   [本版本没有干净备份]" : ""));
             if (r.ExeSizeBefore > 0 || r.ExeSizeAfter > 0)
                 Log.Line("Terraria.exe: " + r.ExeSizeBefore + " -> " + r.ExeSizeAfter + " 字节（" + (r.ExeSizeAfter - r.ExeSizeBefore).ToString("+0;-0;0") + "）");
             Log.Line("补丁标记    : 安装前 x" + r.MarkerBefore + " -> 安装后 x" + r.MarkerAfter);
@@ -593,49 +841,6 @@ namespace ProjectionSetup
             if (len != data.Length) throw new IOException("解压 " + Path.GetFileName(destination) + " 大小不符: " + len + " != " + data.Length);
         }
 
-        /// <summary>
-        /// 统计文件里 ASCII "ProjectionMod" 出现次数（补丁成功会给 Terraria.exe 增加一条 AssemblyRef）。
-        /// 原版文件是 0 次，打过补丁是 1 次以上。
-        /// </summary>
-        private static int CountMarker(string path, out int firstOffset)
-        {
-            firstOffset = -1;
-            try
-            {
-                byte[] data = File.ReadAllBytes(path);
-                byte[] needle = Encoding.ASCII.GetBytes("ProjectionMod");
-                int count = 0;
-                int pos = 0;
-                ReadOnlySpan<byte> span = data;
-                while (pos <= span.Length - needle.Length)
-                {
-                    int hit = span.Slice(pos).IndexOf(needle);
-                    if (hit < 0) break;
-                    if (count == 0) firstOffset = pos + hit;
-                    count++;
-                    pos += hit + needle.Length;
-                }
-                return count;
-            }
-            catch (Exception e)
-            {
-                Log.Line("      读取 " + Path.GetFileName(path) + " 失败: " + e.Message);
-                return 0;
-            }
-        }
-
-        private static string FileVersion(string path)
-        {
-            try
-            {
-                FileVersionInfo vi = FileVersionInfo.GetVersionInfo(path);
-                return vi.FileVersion ?? "(无)";
-            }
-            catch
-            {
-                return "(读取失败)";
-            }
-        }
 
         // ------------------------------------------------------------------
         //  快捷方式
@@ -781,7 +986,7 @@ namespace ProjectionSetup
             // 方式一：IShellLink COM（不依赖 PowerShell，能指定任意路径）
             try
             {
-                ShellLink.Create(lnk, exePath, gameDir, File.Exists(ico) ? ico : null, "泰拉瑞亚投影MOD（原版 1.4.5.8）");
+                ShellLink.Create(lnk, exePath, gameDir, File.Exists(ico) ? ico : null, "泰拉瑞亚投影MOD（投影插件）");
                 if (File.Exists(lnk))
                 {
                     r.ShortcutPath = lnk;
@@ -887,7 +1092,7 @@ namespace ProjectionSetup
                 Proc.Result pr = Proc.Run("powershell.exe",
                     "-NoProfile -ExecutionPolicy Bypass -File \"" + script + "\"" +
                     " -LnkPath \"" + lnk + "\" -Target \"" + exePath + "\" -WorkDir \"" + workDir + "\"" +
-                    " -Icon \"" + (icoPath ?? "") + "\" -Desc \"泰拉瑞亚投影MOD（原版 1.4.5.8）\"",
+                    " -Icon \"" + (icoPath ?? "") + "\" -Desc \"泰拉瑞亚投影MOD（投影插件）\"",
                     tempDir, 120000);
                 Log.Line("      mkshortcut.ps1 退出码: " + pr.ExitCode +
                         (string.IsNullOrWhiteSpace(pr.StdOut) ? "" : "  输出: " + Flatten(pr.StdOut)) +

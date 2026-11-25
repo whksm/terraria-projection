@@ -1,8 +1,8 @@
 # 泰拉瑞亚投影MOD 安装器（单文件 exe）
 
 .NET 8 WinForms 安装器，`dotnet publish` 自包含单文件发布，**不依赖目标机器的 .NET**。
-它把 `release/` 里的全部载荷内嵌进 exe，运行时解压到临时目录再调用，行为对齐已经跑通的
-`release/setup.cmd`（那份仍然保留作回退方案，没有被改动）。
+它把 `release/` 里的全部载荷内嵌进 exe，运行时解压到临时目录再调用，行为与
+`release/setup.cmd`（zip 回退方案，两份脚本逻辑同步维护）保持一致。
 
 ## 构建
 
@@ -30,11 +30,13 @@ dotnet publish installer/SetupApp -c Release -r win-x64 --self-contained true `
 | `Setup.exe --shortcut-name "名字"` | 改快捷方式文件名（不带 `.lnk`），默认 `启动泰拉瑞亚投影MOD` |
 | `Setup.exe --shortcut-dir "目录"` | 快捷方式放到指定目录而不是桌面（测试用） |
 | `Setup.exe --detect-only` | 只检测游戏目录，不写任何文件 |
+| `Setup.exe --check "目录"` | 只打印版本 / 补丁状态 / 备份清单（只读） |
+| `Setup.exe --restore "目录"` | 用与当前版本相同的原版备份还原 `Terraria.exe` |
 | `Setup.exe --selftest` | 环境自检（内嵌资源 / WinForms / COM / 代码页），不碰游戏 |
 | `Setup.exe --help` / `--version` | 帮助 / 版本 |
 
 退出码：`0` 成功 · `1` 取消 · `2` 参数错误 · `3` 找不到游戏 · `4` 游戏正在运行 · `5` 备份失败 ·
-`6` 打补丁失败 · `7` 复制文件失败 · `9` 未知异常。
+`6` 打补丁失败 · `7` 复制文件失败 · `8` 没有同版本原版备份（还原拒绝） · `9` 未知异常。
 
 日志：**exe 同目录的 `install.log`**（该目录不可写时自动退到 `%TEMP%\install.log`），
 UTF-8、带毫秒时间戳，开头写启动环境、结尾写结果汇总。任何异常都会写进日志并在界面模式弹窗。
@@ -45,10 +47,13 @@ UTF-8、带毫秒时间戳，开头写启动环境、结尾写结果汇总。任
    再解析 `steamapps\libraryfolders.vdf` 里的其他 Steam 库；然后扫 `D:\steam`、
    `Program Files (x86)\Steam`、各盘符的 `SteamLibrary` 等常见路径；都没有就弹目录选择框。
 2. 检查游戏是否正在运行（按 Terraria.exe 的完整路径比对 PID），正在运行直接报错退出，不碰任何文件。
-3. 备份 `Terraria.exe` → `Terraria_backup_projection.exe`（已存在不覆盖，和 setup.cmd 一致）。
+3. 读 `Terraria.exe` 的版本（`FileVersion`）和补丁状态，按版本备份
+   （`BackupStore.cs`，规则见下一节）。**只备份未打补丁的 exe；版本变了重新备份**；
 4. 把 `Patcher.exe` / `Mono.Cecil.dll` / `ProjectionMod.dll` 解压到临时目录，**工作目录也设成该目录**后
-   `Patcher.exe patch <游戏目录>`（Patcher 用 `Assembly.Location` 找 ProjectionMod.dll，必须同目录）。
-   之后用「文件里是否出现 `ProjectionMod` 引用」校验补丁真的生效，并记录打补丁前后的大小。
+   执行 `Patcher.exe patch <游戏目录> <临时目录>` —— 让 Patcher **只把成品写到临时目录**
+   （不碰游戏目录，也不让它自己建没有版本号的 `Terraria_backup_projection.exe`）。
+   之后校验成品里真出现 `ProjectionMod` 标记，再经「游戏目录里的 `.new` → 原子改名」替换 `Terraria.exe`。
+   已经打过补丁的 exe 直接跳过注入（幂等，不会把 `Bootstrap.Init` 注入两次）。
 5. 复制 `ProjectionMod.dll`、`0Harmony.dll`、`ProjectionMod.bp`（已存在不覆盖）、`ProjectionMod.ico`、
    `卸载.bat`、`投影MOD_使用说明.md`，每个文件校验写入长度。
 6. 建桌面快捷方式（带图标，默认名 `启动泰拉瑞亚投影MOD`）：先用 IShellLink COM，失败回退到内嵌的
@@ -71,6 +76,23 @@ Windows 上如果同一个目录里既有文件夹 `X` 又有快捷方式 `X.lnk
   - 指向别的地方 → **不覆盖**，换名下一位，并在日志里写明原来指向哪里。
 - 卸载：`卸载.bat` 只还原 `Terraria.exe` 并列出可选清理项，**不删除任何快捷方式**，
   因此不可能误删用户的其他快捷方式；需要清理时手动删安装日志里记录的那个 `.lnk`。
+- 还原只认同版本原版备份，找不到就报错退出（详见下一节）。
+
+## 备份策略（v1.3.0 起，与 `setup.cmd` / `卸载.bat` 完全一致）
+
+`BackupStore.cs` 是这一块的唯一实现，`setup.cmd` / `卸载.bat` 里的对应子过程逻辑相同，
+**改规则要三处一起改**：
+
+- 备份名：`Terraria_backup_<版本>_vanilla.exe`，版本取 `FileVersion`（回退 `ProductVersion`），
+  规范化规则 = 取开头连续的数字与点、超过 3 段时去掉结尾 `.0`（`1.4.6.1.0` → `1.4.6.1`）；
+- **只备份未打补丁的 exe**：判据是文件里有没有 ASCII `ProjectionMod`（补丁注入了 AssemblyRef /
+  类型名）。已打补丁的 exe 一旦被当原版备份，卸装就等于没卸；
+- **版本变了必须重新备份**：不再「存在就跳过」；旧版本备份不删，但要指明「只对各自版本有效」；
+- 同名备份本身是打过补丁的 → 用当前原版 exe 覆盖它；
+- **还原只认与当前 exe 版本相同的 vanilla 备份**，找不到/只有坏的 → `ExitCodes.NoMatchingBackup`(8)，
+  报错并给 Steam 校验完整性的步骤，**绝不默默盖旧版本**（1.4.5.8 的 exe + 1.4.6.1 的 Content 必崩）；
+- 没有干净备份时，安装流程不会假装没事：结果里带 `NoCleanBackup`，界面弹警告、静默模式打印补救步骤、
+  日志写「本版本没有干净的原版备份」。
 
 ## 实测纪律（重要）
 
@@ -85,6 +107,32 @@ Windows 上如果同一个目录里既有文件夹 `X` 又有快捷方式 `X.lnk
    不要 kill 玩家正在用的进程。
 
 ## 实测记录（本机，干净游戏目录副本）
+
+### v1.3.0 备份策略（1.4.6.1 时代的收尾修复）
+
+用的是临时目录里的假 exe（`csc` 编译出 `FileVersion` 分别为 1.4.6.1 / 1.4.6.2 / 1.4.5.8 的小程序，
+「已打补丁」= 在文件尾部追加 ASCII `ProjectionMod`），以及一份真 1.4.5.8 `Terraria.exe` 的副本：
+
+| 场景 | 期望 | 实测 |
+| --- | --- | --- |
+| 干净 1.4.6.1，首次安装/备份 | 生成 `Terraria_backup_1.4.6.1_vanilla.exe` | ✅ 生成，大小与原文件一致 |
+| 再跑一次（同版本、未变） | 幂等，不再备份 | ✅ 「本版本备份已存在且是原版，跳过」 |
+| exe 换成 1.4.6.2（干净） | 按新版本**重新**备份，旧备份保留 | ✅ 生成 `…_1.4.6.2_vanilla.exe`，1.4.6.1 那份还在 |
+| 已打补丁 + 本版本有干净备份 | 不备份、不重复注入 | ✅ 跳过注入，exe 的 SHA256 不变 |
+| 已打补丁 + 本版本**没有**干净备份 | 不备份、明确警告 + 补救步骤 + 列出旧备份 | ✅ 界面对应 `NoCleanBackup`（静默模式打印 4 步补救） |
+| 还原：只有旧版本备份 | **拒绝**，退出码 8 + Steam 校验提示 | ✅ `exit 8`，报错文案含「只接受 Terraria_backup_1.4.6.2_vanilla.exe」 |
+| 还原：同名备份本身被打过补丁 | 同样拒绝 | ✅ `exit 8` |
+| 还原：同版本、干净 | 覆盖成功并回读校验 | ✅ 版本一致、无 `ProjectionMod` 标记 |
+| 还原：当前已是原版 | 不动文件，只列清理项 | ✅ 「已经是原版，不需要还原」 |
+| `--check` | 只读，不写任何文件 | ✅ 打印版本/状态/备份清单/结论 |
+
+真 1.4.5.8 副本上跑完整安装：`Terraria_backup_1.4.5.8_vanilla.exe` 生成、
+补丁标记 x0 → x1、6 个文件复制、`--silent` 退出码 0；第二次安装补丁跳过、exe 哈希不变；
+**没有再产生 `Terraria_backup_projection.exe`**。
+`setup.cmd` 的同款场景在 `installer/setup.cmd` 上跑了一遍，结果一致（含 `--check` / `--backup-only` /
+`--restore` 三个模式）。
+
+### 早先的记录（v1.2.0，1.4.5.8 时代）
 
 - 干净副本 `Terraria.exe` = 26,584,064 字节 / 版本 1.4.5.8
 - 第一次静默安装：退出码 **0**，`Terraria.exe` 26,584,064 → **26,593,280**（+9,216），
