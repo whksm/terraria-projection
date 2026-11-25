@@ -269,8 +269,11 @@ namespace ProjectionMod
             int dy = op.y * 16 - (int)Main.screenPosition.Y;
             Rectangle dst = new Rectangle(dx, dy, 16, 16);
 
-            // 墙只画很淡的衬底，避免盖住方块
-            sb.Draw(px, dst, op.texKind == 1 ? C_BACKDROP * 0.6f : C_BACKDROP);
+            bool isWall = op.texKind == 1;
+            bool platform = !isWall && op.texType >= 0 && op.texType <= 65535
+                && WorldUtil.IsPlatform((ushort)op.texType);
+
+            DrawCellBackdrop(sb, px, dx, dy, op, isWall, platform);
 
             Texture2D tex = null;
             Rectangle src = new Rectangle(0, 0, 16, 16);
@@ -314,50 +317,184 @@ namespace ProjectionMod
                 }
             }
 
+            Color tint = isWall ? C_GHOST * 0.6f : C_GHOST;
+            if (op.paint != 0)
+            {
+                Color pc = PaintColor(op.paint);
+                tint = new Color(tint.R * pc.R / 255, tint.G * pc.G / 255, tint.B * pc.B / 255, tint.A);
+            }
+
             if (tex != null)
             {
-                Color tint = op.texKind == 1 ? C_GHOST * 0.6f : C_GHOST;
-                if (op.paint != 0)
+                if (wholeTex)
                 {
-                    Color pc = PaintColor(op.paint);
-                    tint = new Color(tint.R * pc.R / 255, tint.G * pc.G / 255, tint.B * pc.B / 255, tint.A);
+                    // 物品图标没有方块帧，整张画，形状用兜底线提示
+                    sb.Draw(tex, dst, null, tint);
                 }
-                if (wholeTex) sb.Draw(tex, dst, null, tint);
-                else sb.Draw(tex, dst, src, tint);
+                else if (!isWall && op.halfBrick)
+                {
+                    // 半砖：取 frame 顶部 8px，画到下半格
+                    sb.Draw(tex, new Rectangle(dx, dy + 8, 16, 8),
+                        new Rectangle(src.X, src.Y, 16, 8), tint);
+                }
+                else if (!isWall && !platform && op.slope != 0 && !HasSlopeFrames(op.texType))
+                {
+                    // 普通块坡：按游戏算法用 8 条 2px 竖条裁出坡
+                    DrawSlopeStrips(sb, tex, src.X, src.Y, dx, dy, op.slope, tint, true);
+                }
+                else
+                {
+                    // 平台/整块/自带坡帧：直接画 frame（平台的 frameX 已经编码了形状）
+                    sb.Draw(tex, dst, src, tint);
+                }
             }
             else
             {
-                sb.Draw(px, dst, FallbackColor(op.texKind, op.texType) * 0.55f);
+                DrawFallbackShape(sb, px, dx, dy, op, isWall, platform);
             }
 
-            // 斜坡 / 半砖提示（画在贴图之上，用短线表示形状）
-            if (op.slope != 0) DrawSlopeMark(sb, px, dx, dy, op.slope);
-            if (op.halfBrick) DrawHalfBrickMark(sb, px, dx, dy);
+            // 平台 slope 3/4（block swap 遗留）：游戏照画平放帧，投影也照画；
+            // 额外加一个 3x3 半透明角标提示隐藏坡向，不改变形状判断。
+            if (!isWall && platform && op.slope >= 3 && tex != null && !wholeTex)
+                DrawPlatformSlopeCorner(sb, px, dx, dy, op.slope, op.halfBrick);
+
+            // 只在“没有真实方块贴图”或“只有物品图标”时画兜底线，避免盖住真实 frame
+            if (tex == null || wholeTex)
+                DrawShapeFallbackLine(sb, px, dx, dy, op.slope, op.halfBrick);
         }
 
-        /// <summary>斜坡提示：用一串 2px 点画对角虚线（1/2 = 下半，3/4 = 上半）。</summary>
-        private static void DrawSlopeMark(SpriteBatch sb, Texture2D px, int dx, int dy, byte slope)
+        /// <summary>衬底也按形状裁：半砖只画下半格，普通块坡画同样 8 条，平台坡不画整格。</summary>
+        private static void DrawCellBackdrop(SpriteBatch sb, Texture2D px, int dx, int dy,
+            DrawOp op, bool isWall, bool platform)
         {
-            Color c = new Color(255, 245, 200) * 0.85f;
-            bool top = slope >= 3;
-            bool risingRight = (slope == 1 || slope == 3);
+            if (isWall)
+            {
+                sb.Draw(px, new Rectangle(dx, dy, 16, 16), C_BACKDROP * 0.6f);
+                return;
+            }
+            if (op.halfBrick)
+            {
+                sb.Draw(px, new Rectangle(dx, dy + 8, 16, 8), C_BACKDROP);
+                return;
+            }
+            if (op.slope != 0)
+            {
+                if (!platform && !HasSlopeFrames(op.texType))
+                    DrawSlopeStrips(sb, px, 0, 0, dx, dy, op.slope, C_BACKDROP, false);
+                // 平台坡/自带坡帧：形状由 frame 决定，画整格衬底会露出空白半边
+                return;
+            }
+            sb.Draw(px, new Rectangle(dx, dy, 16, 16), C_BACKDROP);
+        }
+
+        /// <summary>取不到方块贴图时的兜底：按形状铺色块（坡用 8 条，半砖用下半格）。</summary>
+        private static void DrawFallbackShape(SpriteBatch sb, Texture2D px, int dx, int dy,
+            DrawOp op, bool isWall, bool platform)
+        {
+            Color fc = FallbackColor(op.texKind, op.texType) * 0.55f;
+            if (isWall)
+            {
+                sb.Draw(px, new Rectangle(dx, dy, 16, 16), fc);
+                return;
+            }
+            if (op.halfBrick)
+            {
+                sb.Draw(px, new Rectangle(dx, dy + 8, 16, 8), fc);
+                return;
+            }
+            if (op.slope != 0 && !platform && !HasSlopeFrames(op.texType))
+            {
+                DrawSlopeStrips(sb, px, 0, 0, dx, dy, op.slope, fc, false);
+                return;
+            }
+            sb.Draw(px, new Rectangle(dx, dy, 16, 16), fc);
+        }
+
+        private static bool HasSlopeFrames(int type)
+        {
+            return type >= 0 && type < TileID.Sets.HasSlopeFrames.Length && TileID.Sets.HasSlopeFrames[type];
+        }
+
+        /// <summary>
+        /// 普通块坡的 8 条竖条裁剪（与 1.4.5.8 TileDrawing.DrawBasicTile 的算法一致）。
+        /// useSource=false 时用 1x1 像素纹理铺色块（衬底/兜底）。
+        /// </summary>
+        private static void DrawSlopeStrips(SpriteBatch sb, Texture2D tex, int srcX, int srcY,
+            int dx, int dy, byte slope, Color tint, bool useSource)
+        {
             for (int i = 0; i < 8; i++)
             {
-                int px2 = dx + i * 2;
-                int py2 = risingRight
-                    ? (top ? dy + 1 + i : dy + 15 - i)
-                    : (top ? dy + 15 - i : dy + 1 + i);
-                if (py2 > dy + 15) py2 = dy + 15;
-                sb.Draw(px, new Rectangle(px2, py2, 2, 2), c);
+                int offX;
+                int offY;
+                int h;
+                int srcYOff;
+                switch (slope)
+                {
+                    case 1:
+                        offX = i * 2;
+                        offY = i * 2;
+                        h = 14 - i * 2;
+                        srcYOff = 0;
+                        break;
+                    case 2:
+                        offX = 16 - i * 2 - 2;
+                        offY = i * 2;
+                        h = 14 - i * 2;
+                        srcYOff = 0;
+                        break;
+                    case 3:
+                        offX = i * 2;
+                        offY = 0;
+                        h = 16 - i * 2;
+                        srcYOff = i * 2;
+                        break;
+                    default: // 4
+                        offX = 16 - i * 2 - 2;
+                        offY = 0;
+                        h = 16 - i * 2;
+                        srcYOff = i * 2;
+                        break;
+                }
+                if (h <= 0) continue;
+                Rectangle d = new Rectangle(dx + offX, dy + offY, 2, h);
+                if (useSource)
+                    sb.Draw(tex, d, new Rectangle(srcX + offX, srcY + srcYOff, 2, h), tint);
+                else
+                    sb.Draw(tex, d, tint);
             }
         }
 
-        /// <summary>半砖提示：中间一条横向虚线。</summary>
-        private static void DrawHalfBrickMark(SpriteBatch sb, Texture2D px, int dx, int dy)
+        /// <summary>平台 slope 3/4 的隐藏坡向角标（左上/右上小 L，不覆盖形状主体）。</summary>
+        private static void DrawPlatformSlopeCorner(SpriteBatch sb, Texture2D px, int dx, int dy,
+            byte slope, bool halfBrick)
         {
-            Color c = new Color(200, 235, 255) * 0.8f;
-            for (int i = 0; i < 4; i++)
-                sb.Draw(px, new Rectangle(dx + i * 4, dy + 7, 3, 2), c);
+            Color c = new Color(255, 245, 200) * 0.45f;
+            int y = dy + (halfBrick ? 9 : 1);
+            int x = slope == 3 ? dx + 1 : dx + 12;
+            sb.Draw(px, new Rectangle(x, y, 3, 1), c);
+            sb.Draw(px, new Rectangle(x, y, 1, 3), c);
+        }
+
+        /// <summary>贴图缺失时的方向提示：1→\、2→/、3→/、4→\；半砖画 y+8 横线。</summary>
+        private static void DrawShapeFallbackLine(SpriteBatch sb, Texture2D px, int dx, int dy,
+            byte slope, bool halfBrick)
+        {
+            Color c = new Color(255, 245, 200) * 0.85f;
+            if (halfBrick)
+            {
+                for (int i = 0; i < 4; i++)
+                    sb.Draw(px, new Rectangle(dx + i * 4, dy + 8, 3, 2), c);
+                return;
+            }
+            if (slope == 0) return;
+
+            bool downRight = (slope == 1 || slope == 4);
+            for (int i = 0; i < 8; i++)
+            {
+                int x = dx + i * 2;
+                int y = downRight ? dy + i * 2 : dy + 15 - i * 2;
+                sb.Draw(px, new Rectangle(x, y, 2, 2), c);
+            }
         }
 
         /// <summary>漆色（近似原版油漆调色板，用于幽灵着色提示）。</summary>

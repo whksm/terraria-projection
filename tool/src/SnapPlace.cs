@@ -16,6 +16,7 @@ namespace ProjectionMod
         public const int Radius = 2;
 
         private static DateTime _logTime = DateTime.MinValue;
+        private static DateTime _platformLogTime = DateTime.MinValue;
 
         /// <summary>放置前调用：把放置目标吸附到最近的缺失投影格。</summary>
         public static void Apply()
@@ -34,7 +35,11 @@ namespace ProjectionMod
 
                 // 光标已经对准一个“手持材料可满足”的缺失格 → 无需吸附
                 BpCell cur;
-                if (IsMissing(bp, hx, hy, out cur) && WorldUtil.ItemMatches(held, cur)) return;
+                if (IsMissing(bp, hx, hy, out cur) && WorldUtil.ItemMatches(held, cur))
+                {
+                    if (WorldUtil.IsPlatform(cur.type)) LogPlatformHint(hx, hy);
+                    return;
+                }
 
                 // 光标所在格已有方块 → 不吸附（此时是在对已有结构操作，别抢目标）
                 Tile cursorTile;
@@ -75,6 +80,10 @@ namespace ProjectionMod
                 Player.tileTargetX = bestX;
                 Player.tileTargetY = bestY;
 
+                BpCell bestCell;
+                if (bp.TryGetWorld(bestX, bestY, out bestCell) && WorldUtil.IsPlatform(bestCell.type))
+                    LogPlatformHint(bestX, bestY);
+
                 if ((DateTime.UtcNow - _logTime).TotalSeconds >= 1)
                 {
                     _logTime = DateTime.UtcNow;
@@ -82,6 +91,15 @@ namespace ProjectionMod
                 }
             }
             catch { /* 吸附失败不影响原放置流程 */ }
+        }
+
+        /// <summary>平台目标吸附不会还原蓝图款式/楼梯/半砖，限频提示玩家用打印机。</summary>
+        private static void LogPlatformHint(int x, int y)
+        {
+            if ((DateTime.UtcNow - _platformLogTime).TotalSeconds < 10) return;
+            _platformLogTime = DateTime.UtcNow;
+            Bootstrap.Log("吸附放置: 目标 (" + x + "," + y +
+                ") 是平台；吸附只改位置，不能还原蓝图款式/楼梯/半砖，平台请用打印机（NumPad7）");
         }
 
         /// <summary>该格是否为“投影需要、但尚未放置”的缺失格。</summary>

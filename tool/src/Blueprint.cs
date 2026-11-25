@@ -112,7 +112,7 @@ namespace ProjectionMod
                     {
                         c.frameX = short.Parse(p[4].Trim());
                         c.frameY = short.Parse(p[5].Trim());
-                        c.hasFrame = true;
+                        c.hasFrame = c.frameX >= 0 && c.frameY >= 0;
                     }
                     if (p.Length >= 12)
                     {

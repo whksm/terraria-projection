@@ -60,11 +60,22 @@ namespace ProjectionMod
             c.hasFrame = true;
             c.wire = PackWires(t);
             c.actuator = t.actuator();
-            c.slope = t.slope();
+            byte sl = t.slope();
+            if (sl > 4) sl = 0;                 // 正常方块/平台只有 0..4；坏值不往蓝图里带
             c.halfBrick = t.halfBrick();
+            // 平台实测存在 slope 3/4（block swap 从实体块带过来的），必须原样保留；
+            // 普通块则维持“半砖优先”，半砖时 slope 归 0。
+            if (!IsPlatform(c.type) && c.halfBrick) sl = 0;
+            c.slope = sl;
             c.paint = t.color();
             c.wallPaint = t.wallColor();
             return c;
+        }
+
+        /// <summary>是否为平台类方块（19 / 427 / 435..439）。</summary>
+        public static bool IsPlatform(ushort type)
+        {
+            return type < TileID.Sets.Platforms.Length && TileID.Sets.Platforms[type];
         }
 
         /// <summary>电线四位打包成 bitmask（bit0 红 / bit1 蓝 / bit2 绿 / bit3 黄）。</summary>

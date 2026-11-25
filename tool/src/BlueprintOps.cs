@@ -169,7 +169,7 @@ namespace ProjectionMod
                 Blueprint bp = Renderer.Current;
                 if (bp == null) { Bootstrap.Log("验证: 未加载蓝图"); return; }
 
-                int total = 0, ok = 0, miss = 0, wrong = 0, extra = 0;
+                int total = 0, ok = 0, miss = 0, wrong = 0, extra = 0, shapeWrong = 0;
                 List<string> issues = new List<string>();
 
                 foreach (BpEntry e in bp.Entries)
@@ -191,6 +191,22 @@ namespace ProjectionMod
                             issues.Add(string.Format("({0},{1}) 应 块{2}/墙{3} 实际 块{4}/墙{5}",
                                 wx, wy, cell.type, cell.wall,
                                 t.active() ? t.type.ToString() : "空", t.wall));
+                        continue;
+                    }
+
+                    bool shapeBad = t.slope() != cell.slope || t.halfBrick() != cell.halfBrick;
+                    bool frameBad = WorldUtil.IsPlatform(cell.type) && cell.hasFrame &&
+                        (t.frameX != cell.frameX || t.frameY != cell.frameY);
+                    if (shapeBad || frameBad)
+                    {
+                        wrong++;
+                        shapeWrong++;
+                        if (issues.Count < 10)
+                            issues.Add(string.Format(
+                                "({0},{1}) 形状/帧不符: slope {2}->{3}, half {4}->{5}, frame ({6},{7})->({8},{9})",
+                                wx, wy, cell.slope, t.slope(),
+                                cell.halfBrick ? 1 : 0, t.halfBrick() ? 1 : 0,
+                                cell.frameX, cell.frameY, t.frameX, t.frameY));
                     }
                     else ok++;
                 }
@@ -211,8 +227,8 @@ namespace ProjectionMod
                     }
                 }
 
-                Bootstrap.Log(string.Format("验证: 正确 {0}/{1} | 缺失 {2} | 错放 {3} | 多余 {4}",
-                    ok, total, miss, wrong, extra));
+                Bootstrap.Log(string.Format("验证: 正确 {0}/{1} | 缺失 {2} | 错误 {3}（形状/帧 {4}） | 多余 {5}",
+                    ok, total, miss, wrong, shapeWrong, extra));
                 foreach (string s in issues) Bootstrap.Log("  问题: " + s);
                 Bootstrap.Log(wrong == 0 && miss == 0 && extra == 0 ? "验证: 完美 ✓" : "验证: 存在问题，见上");
             }
