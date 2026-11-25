@@ -6,6 +6,7 @@
 // 兼容 .NET Framework 4.0（C# 5 语法）。
 
 using System;
+using System.Diagnostics;
 using System.Reflection;
 using HarmonyLib;
 using Microsoft.Xna.Framework;
@@ -223,8 +224,19 @@ namespace ProjectionMod
             if (!placed) return false;
 
             // —— 正常消耗与节奏 ——
-            held.stack--;
-            if (held.stack <= 0) held.SetDefaults(0);
+            // 法杖类（蜂巢魔棒 1129 / 骨棒 29 / 树叶魔棒 740 / 生命木魔棒 832 …）原版放方块**不扣数量**：
+            // Item.consumable == false 就不扣，否则 stack=1 的魔棒会被 SetDefaults(0) 吞掉（和打印机同一个 bug）。
+            // 反向保证：普通方块（consumable == true）必须照常 -1，见下面 Debug.Assert。
+            bool wasConsumable = held.consumable;
+            int heldItemType = held.type;
+            int heldBefore = held.stack;
+            if (wasConsumable)
+            {
+                held.stack--;
+                if (held.stack <= 0) held.SetDefaults(0);
+            }
+            Debug.Assert(!wasConsumable || held.type == 0 || held.stack == heldBefore - 1,
+                "无支撑放置: consumable=true 的物品没有扣数量，type=" + heldItemType);
             pl.itemTime = useTime;
             pl.itemAnimation = useAnim;
 
@@ -237,7 +249,9 @@ namespace ProjectionMod
             {
                 _directLogTime = DateTime.UtcNow;
                 Bootstrap.Log("无支撑放置: (" + tx + "," + ty + ") type=" + tileType +
-                    " 剩余材料=" + (held.stack > 0 ? held.stack.ToString() : "0"));
+                    (wasConsumable
+                        ? " 剩余材料=" + (held.stack > 0 ? held.stack.ToString() : "0")
+                        : " 非消耗物品 item=" + heldItemType + "（不扣数量）"));
             }
             return true;
         }

@@ -169,7 +169,7 @@ namespace ProjectionMod
                 Blueprint bp = Renderer.Current;
                 if (bp == null) { Bootstrap.Log("验证: 未加载蓝图"); return; }
 
-                int total = 0, ok = 0, miss = 0, wrong = 0, extra = 0, shapeWrong = 0;
+                int total = 0, ok = 0, miss = 0, wrong = 0, extra = 0, shapeWrong = 0, missWall = 0;
                 List<string> issues = new List<string>();
 
                 foreach (BpEntry e in bp.Entries)
@@ -180,9 +180,11 @@ namespace ProjectionMod
                     int wx = bp.OriginX + e.bx;
                     int wy = bp.OriginY + e.by;
                     Tile t;
-                    if (!WorldUtil.TryTile(wx, wy, out t)) { miss++; continue; }
-                    if (cell.type != 0 && !t.active()) { miss++; continue; }
-                    if (cell.wall != 0 && t.wall == 0) { miss++; continue; }
+                    if (!WorldUtil.TryTile(wx, wy, out t)) { miss++; if (cell.wall != 0) missWall++; continue; }
+                    bool missBlock = cell.type != 0 && !t.active();
+                    bool missWallCell = cell.wall != 0 && t.wall == 0;
+                    if (missWallCell) missWall++;
+                    if (missBlock || missWallCell) { miss++; continue; }
                     if ((cell.type != 0 && t.type != cell.type) ||
                         (cell.wall != 0 && t.wall != cell.wall))
                     {
@@ -227,8 +229,8 @@ namespace ProjectionMod
                     }
                 }
 
-                Bootstrap.Log(string.Format("验证: 正确 {0}/{1} | 缺失 {2} | 错误 {3}（形状/帧 {4}） | 多余 {5}",
-                    ok, total, miss, wrong, shapeWrong, extra));
+                Bootstrap.Log(string.Format("验证: 正确 {0}/{1} | 缺失 {2}（缺墙 {6}） | 错误 {3}（形状/帧 {4}） | 多余 {5}",
+                    ok, total, miss, wrong, shapeWrong, extra, missWall));
                 foreach (string s in issues) Bootstrap.Log("  问题: " + s);
                 Bootstrap.Log(wrong == 0 && miss == 0 && extra == 0 ? "验证: 完美 ✓" : "验证: 存在问题，见上");
             }
