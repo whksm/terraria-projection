@@ -4,6 +4,13 @@ bin/
 obj/
 *.pdb
 
+# 微软 XNA Framework 4.0 分发组件（Microsoft 版权，不随本仓库分发）
+# 编译前自行安装 XNA Redistributable，或从泰拉瑞亚游戏目录复制 Microsoft.Xna.Framework*.dll 到这里
+tool/xna/
+
+# build.ps1 同步到 tool/ 的副本，与 release/ProjectionMod.dll 是同一份产物，只跟踪 release/ 那份
+tool/ProjectionMod.dll
+
 # 游戏本体（不要上传，几千万字节，而且有版权）
 Terraria.exe
 Terraria_MultiRod.exe

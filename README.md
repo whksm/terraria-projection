@@ -166,8 +166,32 @@ dist/           发布产物（exe / zip 不进 git，RELEASE_NOTES.md 进 git�
 
 ## 构建
 
-需要 .NET Framework 编译环境（`csc.exe`）和一份泰拉瑞亚 `Terraria.exe`
-（1.4.5.8 / 1.4.6.1 都行，构建只按程序集名引用，不锁死版本）：
+需要 .NET Framework 编译环境（`C:\Windows\Microsoft.NET\Framework\v4.0.30319\csc.exe`）和一份泰拉瑞亚
+`Terraria.exe`（放到 `tool\build\Terraria.exe`，`build.ps1` 会校验它是 1.4.5.8 的元数据；
+构建只按程序集名引用，不锁死运行时版本）。
+
+### 构建依赖：XNA Framework 4.0（请自备）
+
+`tool/src/` 的代码引用 **XNA Framework 4.0**，编译时需要这三个程序集放在 `tool/xna/`：
+
+```
+tool/xna/Microsoft.Xna.Framework.dll
+tool/xna/Microsoft.Xna.Framework.Game.dll
+tool/xna/Microsoft.Xna.Framework.Graphics.dll
+```
+
+获取方式（任选其一）：
+
+1. **安装 XNA Framework Redistributable 4.0**（泰拉瑞亚运行时本来就依赖它）。装完程序集在 GAC：
+   `%WINDIR%\Microsoft.NET\assembly\GAC_32\Microsoft.Xna.Framework*\v4.0_4.0.0.0__842cf8be1de50553\`，
+   把这三个 `Microsoft.Xna.Framework*.dll` 复制到 `tool/xna/` 即可；
+2. **从泰拉瑞亚游戏目录复制** —— 部分发行版/旧版本会把 `Microsoft.Xna.Framework*.dll` 直接放在游戏目录里，
+   有就复制到 `tool/xna/`；没有的话用上面的方式一（1.4.6.x 的 Steam 版是从 GAC 加载的，目录里只有
+   `Microsoft.Xna.Framework.Content.Pipeline.dll` / `Microsoft.Xna.Framework.Video.dll`）。
+
+> 这三个 DLL 是 **Microsoft 的分发组件，不随本仓库分发**：`.gitignore` 已忽略 `tool/xna/`，
+> 仓库里只有它们的引用（`build.ps1` 按 `tool/xna/*.dll` 通配引用），把文件放回去就能编译。
+> 说明见 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md)。
 
 ```powershell
 pwsh -NoProfile -File tool\build.ps1            # 编译 + 硬校验 + 同步 tool\ 与 release\
@@ -211,6 +235,10 @@ pwsh -NoProfile -File tool\build.ps1 -Deploy    # 再备份并部署到游戏目
 ## License
 
 MIT
+
+本项目及 `release/` 发布包里随附的第三方组件（**Lib.Harmony**、**Mono.Cecil** 等）遵循各自的许可证，
+版权声明与许可证全文见 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md)。
+其中**微软 XNA Framework 4.0 不随本仓库分发**，编译前需自行安装或从游戏目录复制（见「构建」章节）。
 
 ---
 
