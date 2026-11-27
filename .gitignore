@@ -46,3 +46,6 @@ installer/SetupSingle.cs
 Thumbs.db
 desktop.ini
 .DS_Store
+
+# 工具临时输出
+.mesh-out/

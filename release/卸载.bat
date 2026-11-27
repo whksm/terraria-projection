@@ -230,6 +230,8 @@ echo   %GAMEDIR%\ProjectionMod.ico
 echo   %GAMEDIR%\ProjectionMod.log
 echo   %GAMEDIR%\卸载.bat
 echo   %GAMEDIR%\投影MOD_使用说明.md
+echo   %GAMEDIR%\安装前必读.txt
+echo   %GAMEDIR%\蓝图编辑器.html
 echo   %GAMEDIR%\Blueprints    你保存的蓝图，建议保留
 echo 备份文件建议留着，下次重装或还原还要用。
 goto :eof

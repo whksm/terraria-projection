@@ -54,6 +54,8 @@
     <EmbeddedResource Include="..\..\release\icon.ico" LogicalName="pl.icon.ico" />
     <EmbeddedResource Include="..\..\release\卸载.bat" LogicalName="pl.Uninstall.bat" />
     <EmbeddedResource Include="..\..\release\使用说明.md" LogicalName="pl.Readme.md" />
+    <!-- 一页纸版说明（纯文本，记事本可直接打开）：装完和说明一起放进游戏目录 -->
+    <EmbeddedResource Include="..\..\release\安装前必读.txt" LogicalName="pl.ReadmeFirst.txt" />
     <EmbeddedResource Include="..\..\release\shortcut.ps1" LogicalName="pl.shortcut.ps1" />
     <EmbeddedResource Include="..\..\release\蓝图编辑器.html" LogicalName="pl.Editor.html" />
   </ItemGroup>

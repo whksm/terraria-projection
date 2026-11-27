@@ -216,7 +216,7 @@ namespace ProjectionSetup
                     : "";
                 MessageBox.Show(this,
                     "安装完成！\r\n\r\n" +
-                    "• 启动：桌面「泰拉瑞亚投影MOD」或 Steam 正常启动\r\n" +
+                    "• 启动：桌面「启动泰拉瑞亚投影MOD」或 Steam 正常启动\r\n" +
                     "• 卸载：游戏目录里的 卸载.bat（只认同版本的原版备份）\r\n" +
                     "• 原版备份：" + (string.IsNullOrEmpty(r.BackupPath) ? "(没有)" : System.IO.Path.GetFileName(r.BackupPath)) + "\r\n" +
                     "• 游戏更新后需要重跑本安装器\r\n" + extra +

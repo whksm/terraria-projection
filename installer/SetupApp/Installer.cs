@@ -95,6 +95,7 @@ namespace ProjectionSetup
             new PayloadFile("pl.ProjectionMod.bp", "ProjectionMod.bp", true),
             new PayloadFile("pl.icon.ico", "ProjectionMod.ico", false),
             new PayloadFile("pl.Uninstall.bat", "卸载.bat", false),
+            new PayloadFile("pl.ReadmeFirst.txt", "安装前必读.txt", false),
             new PayloadFile("pl.Readme.md", "投影MOD_使用说明.md", false),
             new PayloadFile("pl.Editor.html", "蓝图编辑器.html", false),
         };
@@ -352,7 +353,7 @@ namespace ProjectionSetup
                 {
                     "Terraria.exe", backupName, "ProjectionMod.dll", "0Harmony.dll",
                     "ProjectionMod.bp", "ProjectionMod.ico", "卸载.bat", "投影MOD_使用说明.md",
-                    "蓝图编辑器.html",
+                    "安装前必读.txt", "蓝图编辑器.html",
                 };
                 foreach (string name in keyFiles)
                 {
@@ -558,7 +559,7 @@ namespace ProjectionSetup
         {
             Log.Line();
             Log.Line("      可选清理（删掉这些就完全移除 mod，不影响游戏）：");
-            foreach (string name in new[] { "ProjectionMod.dll", "0Harmony.dll", "ProjectionMod.ico", "ProjectionMod.log", "卸载.bat", "投影MOD_使用说明.md" })
+            foreach (string name in new[] { "ProjectionMod.dll", "0Harmony.dll", "ProjectionMod.ico", "ProjectionMod.log", "卸载.bat", "投影MOD_使用说明.md", "安装前必读.txt", "蓝图编辑器.html" })
                 Log.Line("        " + Path.Combine(gameDir, name));
             Log.Line("        " + Path.Combine(gameDir, "Blueprints") + "   （你保存的蓝图，建议保留）");
             Log.Line("      备份文件建议留着，下次重装或还原还要用。");

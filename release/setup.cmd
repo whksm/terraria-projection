@@ -121,6 +121,7 @@ copy /y "%ROOT%卸载.bat" "%GAMEDIR%\卸载.bat" >nul
 if not exist "%ROOT%使用说明.md" goto :skip_doc
 copy /y "%ROOT%使用说明.md" "%GAMEDIR%\投影MOD_使用说明.md" >nul
 if exist "%ROOT%蓝图编辑器.html" copy /y "%ROOT%蓝图编辑器.html" "%GAMEDIR%\蓝图编辑器.html" >nul
+if exist "%ROOT%安装前必读.txt" copy /y "%ROOT%安装前必读.txt" "%GAMEDIR%\安装前必读.txt" >nul
 :skip_doc
 
 echo [4/4] 创建桌面快捷方式
@@ -135,7 +136,7 @@ echo       安装包缺少 shortcut.ps1，跳过
 echo.
 echo ============================================
 echo   安装完成！
-echo   启动：桌面「泰拉瑞亚投影MOD」或 Steam 正常启动
+echo   启动：桌面「启动泰拉瑞亚投影MOD」或 Steam 正常启动
 echo   卸载：游戏目录里的 卸载.bat
 if defined NOCLEANBACKUP echo.
 if defined NOCLEANBACKUP echo   [重要] 本版本没有干净的原版备份，卸载时将无法还原 exe。
@@ -585,6 +586,8 @@ echo   %GAMEDIR%\ProjectionMod.ico
 echo   %GAMEDIR%\ProjectionMod.log
 echo   %GAMEDIR%\卸载.bat
 echo   %GAMEDIR%\投影MOD_使用说明.md
+echo   %GAMEDIR%\安装前必读.txt
+echo   %GAMEDIR%\蓝图编辑器.html
 echo   %GAMEDIR%\Blueprints    你保存的蓝图，建议保留
 echo 备份文件建议留着，下次重装或还原还要用。
 goto :eof
